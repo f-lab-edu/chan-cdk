@@ -87,7 +87,7 @@ export class ServicePipelineConstruct extends Construct {
         deploymentTimeout: Duration.minutes(60),
     });
   }
-
+                                                  
   private getEcsApproveActioin = () : ManualApprovalAction => {
 
     const action = new ManualApprovalAction({
