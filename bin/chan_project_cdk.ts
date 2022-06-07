@@ -7,8 +7,5 @@ import { ChanOrderServiceStack } from '../lib/stacks/ChanOrderServiceStack';
 
 const app = new cdk.App();
 
-//new InfraCicdStack(app, 'InfraCicdStack', { env: envKor });
-
-new ChanOrderServiceStack(app, 'ChanOrderService', { env: envKor });
-
+new InfraCicdStack(app, 'InfraCicdStack', { env: envKor });
 //new ChanOrderServiceStack(app, 'ChanOrderService', { env: envKor });
