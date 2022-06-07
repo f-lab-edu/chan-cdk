@@ -37,7 +37,7 @@ export class EcsConstruct extends Construct{
       ]},
     );
 
-    const clusterBeta = new ecs.Cluster(this, `clusterBeta`, { 
+    const cluster = new ecs.Cluster(this, `clusterBeta`, { 
       clusterName: `${props.clusterName}`,
       vpc: vpc,
     });
@@ -61,7 +61,7 @@ export class EcsConstruct extends Construct{
       protocol:ecs.Protocol.TCP 
     });
 
-    clusterBeta.addCapacity('autoscalegroup', {
+    cluster.addCapacity('autoscalegroup', {
       autoScalingGroupName: `${props.servicekName}-asg`,
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T2, ec2.InstanceSize.MICRO),
       desiredCapacity: 1,
@@ -70,7 +70,7 @@ export class EcsConstruct extends Construct{
     });
 
     const service = new ecsp.ApplicationLoadBalancedEc2Service(this, `${props.servicekName}`, {
-      cluster: clusterBeta,
+      cluster: cluster,
       cpu: 256,
       memoryLimitMiB: 256,
       desiredCount: 1,
