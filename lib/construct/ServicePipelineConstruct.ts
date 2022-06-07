@@ -46,7 +46,7 @@ export class ServicePipelineConstruct extends Construct {
     
     //Deploy Beta Stage
     const deployBetaAction = this.getEcsDeployActioin(buildOutput);
-    //pipeline.addStage({stageName: 'Deploy-Beta', actions: [deployBetaAction],})
+    pipeline.addStage({stageName: 'Deploy-Beta', actions: [deployBetaAction],})
 
     /* 검증 필요
     //Approve Stage
