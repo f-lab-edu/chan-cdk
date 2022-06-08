@@ -1,19 +1,29 @@
-import { Stack, StackProps } from 'aws-cdk-lib';
+import { Names, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { ORDER_GIT_REPO } from '../../config/applicationConfig'
 import { RepoConstruct } from '../construct/RepoConstruct';
 import { ServicePipelineConstruct } from '../construct/ServicePipelineConstruct';
-import { EcsConstruct, EcsConstructProps } from '../construct/EcsConstruct'
+import { EcsConstruct, EcsConstructProps } from '../construct/EcsConstruct';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import { EC2_UNIQUE_IMDSV2_LAUNCH_TEMPLATE_NAME } from 'aws-cdk-lib/cx-api';
+import { NetworkMultipleTargetGroupsServiceBase } from 'aws-cdk-lib/aws-ecs-patterns';
+
+export type stackConfig = {
+  prodCidr: string,
+  betaCidr: string,
+  betaContainerPort: number;
+  props?: StackProps,
+}
 
 export class ChanOrderServiceStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, props);
+  constructor(scope: Construct, id: string, config: stackConfig) {
+    super(scope, id, config.props);
 
     //GitHub & ECR repository Setting
     const servieRepo = new RepoConstruct(this, `repo`, {
       serviceName: id, 
       gitRepo: ORDER_GIT_REPO,
-      ecrLoad: false,
+      ecrLoad: true,
     });
     
     //Construct Beta ECS
@@ -21,22 +31,11 @@ export class ChanOrderServiceStack extends Stack {
       servicekName: `${id}Beta`,
       ecrRepo: servieRepo.ecrRepo,
       publicLoadBalancer: true,
-      containerPort: 8080,
-      vpcCidr: '10.0.0.0/16',
+      containerPort: config.betaContainerPort,
+      vpcBetaCidr: config.betaCidr,
+      vpcProdCidr: config.prodCidr,
       clusterName: `${id}-beta-cluster`
     });
-
-    /*
-    //Construct Production ECS
-    const serviceEcsProd = new EcsConstruct(this, `ecsProd`,  {
-      servicekName: `${id}Production`,
-      ecrRepo: servieRepo.ecrRepo,
-      publicLoadBalancer: true,
-      containerPort: 8080,
-      vpcCidr: '10.1.0.0/16',
-      clusterName: `${id}-prod-cluster`
-    });
-    */
 
     //Construct CI / CD
     const servicePipeline = new ServicePipelineConstruct(this, `pipeline`, {
@@ -49,7 +48,7 @@ export class ChanOrderServiceStack extends Stack {
     //serviceEcsProd.node.addDependency(servieRepo);
     serviceBetaBeta.node.addDependency(servieRepo);
     servicePipeline.node.addDependency(servieRepo);
-
+    
   }
 }
   

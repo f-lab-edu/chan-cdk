@@ -8,10 +8,17 @@ export class ServiceRegistrationStage extends Stage {
     super(scope, id, props);
 
     //Common Infra
-    const commonInfra = new CommonInfraStack(this, 'CommonInfra');
+    const commonInfra = new CommonInfraStack(this, 'CommonInfra',{
+      stackName: 'CommonInfraStack',
+    });
 
     //Order Application
-    const chanOrderService = new ChanOrderServiceStack(this,'ChanOrderService');
+    const chanOrderService = new ChanOrderServiceStack(this, 'ChanOrderService', { 
+      props: { stackName: 'ChanOrderServiceStack'},
+      betaCidr: '10.0.0.0/16', 
+      prodCidr: '10.0.100.0/16', 
+      betaContainerPort: 8080, 
+    });
 
     //Delivery Application
 
