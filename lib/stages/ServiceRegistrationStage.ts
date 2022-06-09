@@ -1,5 +1,6 @@
 import { Stage, StageProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import envKor from '../../config/envKor';
 import { ChanOrderServiceStack } from '../stacks/ChanOrderServiceStack';
 import { CommonInfraStack } from '../stacks/CommonInfraStack';
 
@@ -17,9 +18,9 @@ export class ServiceRegistrationStage extends Stage {
       betaCidr: '10.0.0.0/16', 
       prodCidr: '10.0.100.0/16', 
       betaContainerPort: 8080,
-      dbPort:3306,
+      dbPort: 3306,
       dbAdminName: 'postgres',
-      props:{ stackName: 'ChanOrderService'}
+      props: { env: envKor , stackName: 'ChanOrderService'}
     });
 
     //Delivery Application

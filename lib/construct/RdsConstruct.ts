@@ -49,9 +49,9 @@ export class RdsConstruct extends Construct{
       instanceType: props.instanceType,
       allocatedStorage: props.allocatedStorageGb,
       credentials: rds.Credentials.fromSecret(cred),
-      storageEncrypted: false,
+      storageEncrypted: false, 
       removalPolicy: RemovalPolicy.DESTROY,
-      publiclyAccessible: true,
+      publiclyAccessible: false,
     })
     this.dbInfo = {
       dbName: props.dbName,
