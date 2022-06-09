@@ -27,7 +27,7 @@ export class ChanOrderServiceStack extends Stack {
     const servieRepo = new RepoConstruct(this, `repo`, {
       serviceName: id, 
       gitRepo: ORDER_GIT_REPO,
-      ecrLoad: true,
+      ecrLoad: false,
     });
     
     //VPC Setting
@@ -50,7 +50,6 @@ export class ChanOrderServiceStack extends Stack {
       dbAdminName: config.dbAdminName,
       dbKeyName: `${id}`,
     })
-
   
     //Construct ECS
     const serviceBeta = new EcsConstruct(this, `${id}Beta`,  {
