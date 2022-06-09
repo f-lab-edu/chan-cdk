@@ -26,14 +26,18 @@ export default {
               'echo Build completed on `date`',
               'echo Pushing the Docker image...',
               'docker push  $ACCOUNT_ID.dkr.ecr.$ACCOUNT_REGION.amazonaws.com/$IMAGE_NAME:latest',
+              'printf \'{"ImageURI":"%s"}\' $ECR_REPO:latest > imageDetail.json',
               'printf \'[{"name":"driver-service","imageUri":"%s"}]\' $ECR_REPO:latest > imagedefinitions.json',
               'echo Pushing Docker Image completed on `date`'
           ]
       }
   },
   artifacts: {
-      files: [
-        `imagedefinitions.json`
-      ]
+    files: [
+        'imageDetail.json',
+        'imagedefinitions.json',
+        'appspec.yaml',
+        'taskdef.json'
+    ]
   }
 };

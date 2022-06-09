@@ -2,19 +2,27 @@ import { Arn, Duration, SecretValue, Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Pipeline, Artifact } from 'aws-cdk-lib/aws-codepipeline';
 import { IRepo } from './RepoConstruct';
-import { CodeBuildAction, EcsDeployAction, GitHubSourceAction, ManualApprovalAction } from 'aws-cdk-lib/aws-codepipeline-actions';
+import { CodeBuildAction, CodeDeployEcsDeployAction, EcsDeployAction, GitHubSourceAction, ManualApprovalAction } from 'aws-cdk-lib/aws-codepipeline-actions';
 import { BuildSpec, Cache, LinuxBuildImage, LocalCacheMode, PipelineProject } from 'aws-cdk-lib/aws-codebuild';
 import buildSpecContent from '../../config/buildSpecContent';
 import { ManagedPolicy } from 'aws-cdk-lib/aws-iam';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as ecsp from 'aws-cdk-lib/aws-ecs-patterns';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import { Cluster } from 'aws-cdk-lib/aws-ecs';
+import { Cluster, Ec2Service } from 'aws-cdk-lib/aws-ecs';
+import { SecurityGroup } from 'aws-cdk-lib/aws-ec2';
+import { EcsApplication, EcsDeploymentGroup, ServerDeploymentGroup } from 'aws-cdk-lib/aws-codedeploy';
+import { Service } from 'aws-cdk-lib/aws-servicediscovery';
+import { AutoScalingGroup } from 'aws-cdk-lib/aws-autoscaling';
 
 export interface PipelineConfig{
+  serviceName: string,
   pipelineName: string,
+  clusterName: string,
   repo: IRepo,
-  serviceBeta: ecs.IBaseService,
+  serviceBeta: ecsp.ApplicationLoadBalancedEc2Service,
+  cluster: ecs.Cluster,
   Props?: StackProps,
 }
 
@@ -45,7 +53,7 @@ export class ServicePipelineConstruct extends Construct {
     pipeline.addStage({stageName: 'Build', actions: [buildAction],})
     
     //Deploy Beta Stage
-    const deployBetaAction = this.getEcsDeployActioin(buildOutput);
+    const deployBetaAction = this.getEcsBetaDeployActioin(buildOutput);
     //pipeline.addStage({stageName: 'Deploy-Beta', actions: [deployBetaAction],})
 
     /* 검증 필요
@@ -79,13 +87,45 @@ export class ServicePipelineConstruct extends Construct {
     });
   }
 
-  private getEcsDeployActioin = (buildArtifact: Artifact) : EcsDeployAction => {
+  private getEcsBetaDeployActioin = (buildArtifact: Artifact) : CodeDeployEcsDeployAction => {
+    if(this.config.cluster.autoscalingGroup == undefined) throw 'asg error';
+    const asg = this.config.cluster.autoscalingGroup
+    const application = new EcsApplication(this, 'deployapplication', {
+      applicationName: this.config.clusterName
+    })
+    const deploymentGroup = new ServerDeploymentGroup(this, 'deploygroup', {
+      application,
+      deploymentGroupName: 'MyDeploymentGroup',
+      autoScalingGroups: [asg],
+      installAgent: true,
+      autoRollback: {
+        failedDeployment: true, 
+        stoppedDeployment: true,
+      },
+    })
+    /*
+    const deploymentGroup = EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(this, 'ecsdeploygroup', {
+      deploymentGroupName: `${this.config.serviceName}`,
+      application: application,
+    })
+    */
+    return new CodeDeployEcsDeployAction({
+      actionName: `DeployAction`,
+      deploymentGroup : deploymentGroup,
+      taskDefinitionTemplateInput: buildArtifact,
+      appSpecTemplateInput: buildArtifact,
+      containerImageInputs: [{
+        input: buildArtifact,
+      }],
+    });
+    /*
     return new EcsDeployAction({
         actionName: `DeployAction`,
         service: this.pipelineConfig.serviceBeta,
         input: buildArtifact,
         deploymentTimeout: Duration.minutes(60),
     });
+    */
   }
                                                   
   private getEcsApproveActioin = () : ManualApprovalAction => {

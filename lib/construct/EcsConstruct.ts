@@ -5,52 +5,33 @@ import * as ecsp from 'aws-cdk-lib/aws-ecs-patterns';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
-import { Duration, StackProps } from 'aws-cdk-lib';
-import { StringifyOptions } from 'querystring';
+import * as rds from 'aws-cdk-lib/aws-rds';
+import { Duration } from 'aws-cdk-lib';
+import * as secretmanager from 'aws-cdk-lib/aws-secretsmanager';
+import { dbInfo } from './RdsConstruct';
 
 export type EcsConstructProps = {
   servicekName: string,
   ecrRepo: ecr.IRepository,
   publicLoadBalancer: boolean,
   containerPort: number,
-  vpcBetaCidr: string,
-  vpcProdCidr: string,
+  vpc: ec2.Vpc,
   clusterName: String,
+  db: rds.DatabaseInstance,
+  dbInfo: dbInfo,
 }
-
 
 export class EcsConstruct extends Construct{
 
-  public readonly service:ecs.Ec2Service;
-  public readonly lb:elb.ApplicationLoadBalancer; 
-  public readonly vpc:ec2.IVpc;
+  public readonly service:ecsp.ApplicationLoadBalancedEc2Service;
+  public readonly cluster:ecs.Cluster;
 
   constructor(scope: Construct, id: string, props: EcsConstructProps){
     super(scope, id);
 
-    //AWS Nat GateWay대신에 instance 생성해서 nat instance로 사용
-    const natGatewayProvider = ec2.NatProvider.instance({
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
-    });
-
-    //Load balancer, nat instance는 public에
-    //applicaion instance는 private에
-    //db는 isolate에
-    //mask는 24면 2^8 - 5 = 251개씩 사용 가능
-    const vpc = new ec2.Vpc(this, 'vpc', { 
-      maxAzs: 2,
-      cidr: props.vpcBetaCidr,
-      natGatewayProvider: natGatewayProvider,
-      subnetConfiguration: [
-        { name: 'public' , cidrMask: 24, subnetType: ec2.SubnetType.PUBLIC },
-        { name: 'private', cidrMask: 24, subnetType: ec2.SubnetType.PRIVATE_WITH_NAT },
-        { name: 'isolate', cidrMask: 24, subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-      ]
-    });
-
     const cluster = new ecs.Cluster(this, `clusterBeta`, { 
       clusterName: `${props.clusterName}`,
-      vpc: vpc,
+      vpc: props.vpc,
       capacity: {
         autoScalingGroupName: `${props.servicekName}-asg`,
         instanceType: ec2.InstanceType.of(ec2.InstanceClass.T2, ec2.InstanceSize.MICRO),
@@ -59,6 +40,8 @@ export class EcsConstruct extends Construct{
         minCapacity:1,
       }
     });
+
+    this.cluster = cluster;
 
     const taskDefinition = new ecs.TaskDefinition(this, 'TaskDef', {
       compatibility: ecs.Compatibility.EC2,
@@ -71,6 +54,14 @@ export class EcsConstruct extends Construct{
       containerName: `${props.servicekName}-container`,
       image: ecs.ContainerImage.fromEcrRepository(props.ecrRepo, 'latest'),
       memoryLimitMiB: 256,
+      environment: {
+        DATABASE_NAME: props.dbInfo.dbName,
+        DATABASE_HOST: props.dbInfo.dbHost,
+        DATABASE_PORT: props.dbInfo.dbPort,
+        DATABASE_USERNAME: props.dbInfo.dbAdminName,
+        DATABASE_KEYNAME: props.dbInfo.dbKeyName,
+        DATABASE_KEYARN: props.dbInfo.dbKeyArn,
+      },
       cpu: 256,
     }).addPortMappings({ 
       containerPort: props.containerPort, 
@@ -102,15 +93,14 @@ export class EcsConstruct extends Construct{
 
     //scaling
     const scaleableTaskCount = service.service.autoScaleTaskCount({
-      maxCapacity: 1,
+      maxCapacity: 2,
     })
 
     scaleableTaskCount.scaleOnCpuUtilization('Scaling', {
       targetUtilizationPercent: 50,
     })
 
-    this.service = service.service;
-    this.lb = service.loadBalancer;
-    this.vpc = vpc;
+    this.service = service;
+    
   }
 }

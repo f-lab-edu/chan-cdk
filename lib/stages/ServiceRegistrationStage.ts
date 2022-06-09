@@ -14,10 +14,12 @@ export class ServiceRegistrationStage extends Stage {
 
     //Order Application
     const chanOrderService = new ChanOrderServiceStack(this, 'ChanOrderService', { 
-      props: { stackName: 'ChanOrderServiceStack'},
       betaCidr: '10.0.0.0/16', 
       prodCidr: '10.0.100.0/16', 
-      betaContainerPort: 8080, 
+      betaContainerPort: 8080,
+      dbPort:3306,
+      dbAdminName: 'postgres',
+      props:{ stackName: 'ChanOrderService'}
     });
 
     //Delivery Application
