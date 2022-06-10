@@ -10,6 +10,7 @@ import { StringifyOptions } from 'querystring';
 import { Service } from 'aws-cdk-lib/aws-servicediscovery';
 
 export type ApiGatewayConstructProps = {
+  serviceName: string,
   vpc: ec2.Vpc;
   endpoint:elb.NetworkLoadBalancer;
   stackProps?: StackProps
@@ -23,24 +24,6 @@ export class ApiGatewayConstructStack extends Stack{
     //find service
     const vpc = props.vpc;
 
-    const api = new apigateway.RestApi(this, 'Endpoint', {
-      description: 'example api gateway',
-      deployOptions: {
-        stageName: 'dev',
-      },
-      defaultCorsPreflightOptions: {
-        allowHeaders: [
-          'Content-Type',
-          'X-Amz-Date',
-          'Authorization',
-          'X-Api-Key',
-        ],
-        allowMethods: ['OPTIONS', 'GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-        allowCredentials: true,
-        allowOrigins: ['http://localhost:3000'],
-      },
-    });
-
     const vpclinks = 
      new apigateway.VpcLink(this, 'link', {
         targets: [ props.endpoint ],
@@ -53,12 +36,28 @@ export class ApiGatewayConstructStack extends Stack{
           vpcLink: vpclinks,
         },
       });
+/*
+    const api = new apigateway.RestApi(this, 'Endpoint', {
+      restApiName: props.serviceName,
+      description: 'chan Order api gateway',
+    });
+    api.add
 
-    const order = api.root.addResource('order');
-    const proxy = order.addProxy({
-      defaultIntegration: integration,
-    })
+    api.root.addMethod('GET', integration);
+    */
+/*
+    //Hello
+    const hello = api.root.addResource('hello');
+    hello.addMethod('GET');
+
+    //Account
+    const account = api.root.addResource('account');
+    account.addMethod('POST');
     
+    const accountId = account.addResource('{id}');
+    accountId.addMethod('GET'); 
+*/
+
 
   }
 }

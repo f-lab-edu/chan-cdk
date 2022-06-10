@@ -77,7 +77,7 @@ export class EcsConstructStack extends Stack{
       cluster: cluster,
       cpu: 256,
       memoryLimitMiB: 256,
-      desiredCount: 1,
+      desiredCount: 2,
       minHealthyPercent: 50,
       maxHealthyPercent: 300,
       serviceName: props.serviceName,
@@ -95,7 +95,7 @@ export class EcsConstructStack extends Stack{
     });
 
     service.service.autoScaleTaskCount({
-      maxCapacity: 10,
+      maxCapacity: 5,
     }).scaleOnCpuUtilization('Scaling', {
       targetUtilizationPercent: 50,
     })

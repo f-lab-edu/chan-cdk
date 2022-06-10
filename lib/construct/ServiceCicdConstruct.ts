@@ -1,10 +1,9 @@
 import { Construct } from 'constructs';
-import { Arn, SecretValue, Stack, StackProps } from 'aws-cdk-lib';
+import { Arn, CfnOutput, RemovalPolicy, SecretValue, Stack, StackProps } from 'aws-cdk-lib';
 import { Pipeline, Artifact } from 'aws-cdk-lib/aws-codepipeline';
 import { ManagedPolicy } from 'aws-cdk-lib/aws-iam';
-import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as ecsp from 'aws-cdk-lib/aws-ecs-patterns';
-import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { CodeBuildAction, CodeDeployEcsDeployAction, EcsDeployAction, GitHubSourceAction, ManualApprovalAction } from 'aws-cdk-lib/aws-codepipeline-actions';
@@ -17,10 +16,11 @@ export interface PipelineConfig{
   serviceName: string,
   gitRepo: GitRepo,
   ecrRepo: ecr.IRepository,
+  serviceBeta: ecsp.ApplicationLoadBalancedEc2Service,
   stackProps?: StackProps,
 }
 
-export class ServicePipelineConstructStack extends Stack {
+export class ServiceCicdConstruct extends Stack {
 
   private readonly config:PipelineConfig;
 
@@ -30,7 +30,13 @@ export class ServicePipelineConstructStack extends Stack {
     this.config = config;
     
     //Code Pipeline
-    const pipeline = new Pipeline(this, 'Pipeline', {pipelineName: config.serviceName});
+    const pipeline = new Pipeline(this, 'Pipeline', {
+      pipelineName: config.serviceName, 
+      artifactBucket: new s3.Bucket(this, `bucket`, {
+        bucketName: `${config.serviceName}-pipeline`,
+        removalPolicy: RemovalPolicy.DESTROY,
+        autoDeleteObjects: true,
+      })});
 
     //Source Stage
     const sourceOutput = new Artifact();
@@ -43,8 +49,11 @@ export class ServicePipelineConstructStack extends Stack {
     pipeline.addStage({stageName: 'Build', actions: [buildAction],})
     
     //Deploy Beta Stage
-    //const deployBetaAction = this.getEcsBetaDeployActioin(buildOutput);
-    //pipeline.addStage({stageName: 'Deploy-Beta', actions: [deployBetaAction],})
+    const deployBetaAction = this.getEcsBetaDeployActioin(buildOutput);
+    pipeline.addStage({stageName: 'Deploy-Beta', actions: [deployBetaAction],})
+
+    new CfnOutput(this, 'BeatServiceName', { value: config.serviceBeta.service.serviceName});
+    new CfnOutput(this, 'BeatClusterName', { value: config.serviceBeta.service.cluster.clusterName});
 
     /* 검증 필요
     //Approve Stage
@@ -77,37 +86,12 @@ export class ServicePipelineConstructStack extends Stack {
     });
   }
 
-  private getEcsBetaDeployActioin = (buildArtifact: Artifact) => {
-    /*
-    if(this.config.cluster.autoscalingGroup == undefined) throw 'asg error';
-    const asg = this.config.cluster.autoscalingGroup
-    const application = new EcsApplication(this, 'deployapplication', {
-      applicationName: this.config.clusterName
-    })
-    const deploymentGroup = new ServerDeploymentGroup(this, 'deploygroup', {
-      application,
-      deploymentGroupName: 'MyDeploymentGroup',
-      autoScalingGroups: [asg],
-      installAgent: true,
-      autoRollback: {
-        failedDeployment: true, 
-        stoppedDeployment: true,
-      },
-    })
-
-    const deploymentGroup = EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(this, 'ecsdeploygroup', {
-      deploymentGroupName: `${this.config.serviceName}`,
-      application: application,
-    })
-    */
-    /*
+  private getEcsBetaDeployActioin = (buildArtifact: Artifact):EcsDeployAction => {
     return new EcsDeployAction({
         actionName: `DeployAction`,
-        service: this.pipelineConfig.serviceBeta,
+        service: this.config.serviceBeta.service,
         input: buildArtifact,
-        deploymentTimeout: Duration.minutes(60),
     });
-    */
   }
                                                   
   private getEcsApproveActioin = () : ManualApprovalAction => {
@@ -123,6 +107,11 @@ export class ServicePipelineConstructStack extends Stack {
   }
 
   private createCodeBuildProject = (): PipelineProject => {
+    const buildspec = buildSpecContent;
+    buildspec.phases.post_build.commands.push(
+      `printf \'[{"name":"${this.config.serviceBeta.service.serviceName}-container","imageUri":"%s"}]\' $ECR_REPO:latest > imagedefinitions.json`
+    )
+    
     const codeBuildProject = new PipelineProject(this, `${this.config.serviceName}-Codebuild`, {
         projectName: `${this.config.serviceName}-Codebuild`,
         environment: {
@@ -130,7 +119,7 @@ export class ServicePipelineConstructStack extends Stack {
             privileged: true,
         },
         environmentVariables: this.getEnvironmentVariables(),
-        buildSpec: BuildSpec.fromObject(buildSpecContent),
+        buildSpec: BuildSpec.fromObject(buildspec),
         cache: Cache.local(LocalCacheMode.DOCKER_LAYER, LocalCacheMode.CUSTOM),
     });
 

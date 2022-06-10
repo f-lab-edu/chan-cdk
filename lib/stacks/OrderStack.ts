@@ -8,7 +8,7 @@ import { VpcConstructStack } from '../construct/VpcConstructStack';
 import { RdsConstructStack } from '../construct/RdsConstructStack';
 import { EcsConstructStack } from '../construct/EcsConstructStack';
 import { ApiGatewayConstructStack } from '../construct/ApiGatewayConstructStack';
-import { ServicePipelineConstructStack } from '../construct/ServicePipelineConstruct';
+import { ServiceCicdConstruct } from '../construct/ServiceCicdConstruct';
 import { ORDER_GIT_REPO } from '../../config/repositoryConfig';
 
 export class OrderStack extends Stack{
@@ -83,16 +83,18 @@ export class OrderStack extends Stack{
 
     //Consturc ApiGateway
     const api = new ApiGatewayConstructStack(this, 'apigateway', {
+      serviceName: applicationName,
       vpc: vpcBeta.vpc,
       endpoint: serviceBeta.loadbalance,
       stackProps: {stackName : `${applicationName}-apigateway`, env: props.env}
     })
 
     //Construct CI / CD
-    const servicePipeline = new ServicePipelineConstructStack(this, `pipeline`, {
+    const serviceCicd = new ServiceCicdConstruct(this, `cicd`, {
       serviceName: applicationName,
       gitRepo: serviceRepo.gitRepo,
       ecrRepo: serviceRepo.ecrRepo,
+      serviceBeta: serviceBeta.service,
       stackProps: {stackName : `${applicationName}-cicd`, env: props.env}
     });
 
@@ -107,6 +109,6 @@ export class OrderStack extends Stack{
     api.node.addDependency(serviceBeta);
     api.node.addDependency(serviceRepo);
 
-    servicePipeline.node.addDependency(serviceRepo);
+    serviceCicd.node.addDependency(serviceRepo);
   }
 }
