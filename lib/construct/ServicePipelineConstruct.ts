@@ -1,50 +1,40 @@
-import { Arn, Duration, SecretValue, Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import { Arn, SecretValue, Stack, StackProps } from 'aws-cdk-lib';
 import { Pipeline, Artifact } from 'aws-cdk-lib/aws-codepipeline';
-import { IRepo } from './RepoConstruct';
-import { CodeBuildAction, CodeDeployEcsDeployAction, EcsDeployAction, GitHubSourceAction, ManualApprovalAction } from 'aws-cdk-lib/aws-codepipeline-actions';
-import { BuildSpec, Cache, LinuxBuildImage, LocalCacheMode, PipelineProject } from 'aws-cdk-lib/aws-codebuild';
-import buildSpecContent from '../../config/buildSpecContent';
 import { ManagedPolicy } from 'aws-cdk-lib/aws-iam';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsp from 'aws-cdk-lib/aws-ecs-patterns';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as iam from 'aws-cdk-lib/aws-iam';
-import { Cluster, Ec2Service } from 'aws-cdk-lib/aws-ecs';
-import { SecurityGroup } from 'aws-cdk-lib/aws-ec2';
-import { EcsApplication, EcsDeploymentGroup, ServerDeploymentGroup } from 'aws-cdk-lib/aws-codedeploy';
-import { Service } from 'aws-cdk-lib/aws-servicediscovery';
-import { AutoScalingGroup } from 'aws-cdk-lib/aws-autoscaling';
+import { CodeBuildAction, CodeDeployEcsDeployAction, EcsDeployAction, GitHubSourceAction, ManualApprovalAction } from 'aws-cdk-lib/aws-codepipeline-actions';
+import { BuildSpec, Cache, LinuxBuildImage, LocalCacheMode, PipelineProject } from 'aws-cdk-lib/aws-codebuild';
+import { EcsApplication, ServerDeploymentGroup } from 'aws-cdk-lib/aws-codedeploy';
+import buildSpecContent from '../../config/buildSpecContent';
+import { GitRepo } from '../../config/repositoryConfig';
 
 export interface PipelineConfig{
   serviceName: string,
-  pipelineName: string,
-  clusterName: string,
-  repo: IRepo,
-  serviceBeta: ecsp.ApplicationLoadBalancedEc2Service,
-  cluster: ecs.Cluster,
-  Props?: StackProps,
+  gitRepo: GitRepo,
+  ecrRepo: ecr.IRepository,
+  stackProps?: StackProps,
 }
 
-export class ServicePipelineConstruct extends Construct {
+export class ServicePipelineConstructStack extends Stack {
 
-  private pipelineConfig: PipelineConfig;
-  private scope: Stack;
-  private config: PipelineConfig;
-  
-  constructor(scope: Stack, id: string, config: PipelineConfig) {
-    super(scope, id);
+  private readonly config:PipelineConfig;
+
+  constructor(scope: Construct, id: string, config: PipelineConfig) {
+    super(scope, id, config.stackProps);
     
-    this.pipelineConfig = config;
-    this.scope = scope;
     this.config = config;
-
+    
     //Code Pipeline
-    const pipeline = new Pipeline(this, 'Pipeline', {pipelineName: config.pipelineName,});
+    const pipeline = new Pipeline(this, 'Pipeline', {pipelineName: config.serviceName});
 
     //Source Stage
     const sourceOutput = new Artifact();
-    const sourceAction = this.getGitHubSourceAction(config.repo, sourceOutput);
+    const sourceAction = this.getGitHubSourceAction(config.gitRepo, sourceOutput);
     pipeline.addStage({stageName: 'Source', actions: [sourceAction],})
 
     //Build Stage
@@ -67,14 +57,14 @@ export class ServicePipelineConstruct extends Construct {
     */
   }
   
-  private getGitHubSourceAction = (repo:IRepo, output:Artifact) : GitHubSourceAction => {
+  private getGitHubSourceAction = (repo:GitRepo, output:Artifact) : GitHubSourceAction => {
     return new GitHubSourceAction({
         actionName: 'GitHubSourceAction',
-        owner: repo.gitRepo.owner,
+        owner: repo.owner,
         output: output,
-        repo: repo.gitRepo.repoName,
-        branch: repo.gitRepo.branch,
-        oauthToken: SecretValue.secretsManager(repo.gitRepo.tokenName),
+        repo: repo.repoName,
+        branch: repo.branch,
+        oauthToken: SecretValue.secretsManager(repo.tokenName),
     });
   }
 
@@ -87,7 +77,8 @@ export class ServicePipelineConstruct extends Construct {
     });
   }
 
-  private getEcsBetaDeployActioin = (buildArtifact: Artifact) : CodeDeployEcsDeployAction => {
+  private getEcsBetaDeployActioin = (buildArtifact: Artifact) => {
+    /*
     if(this.config.cluster.autoscalingGroup == undefined) throw 'asg error';
     const asg = this.config.cluster.autoscalingGroup
     const application = new EcsApplication(this, 'deployapplication', {
@@ -103,21 +94,12 @@ export class ServicePipelineConstruct extends Construct {
         stoppedDeployment: true,
       },
     })
-    /*
+
     const deploymentGroup = EcsDeploymentGroup.fromEcsDeploymentGroupAttributes(this, 'ecsdeploygroup', {
       deploymentGroupName: `${this.config.serviceName}`,
       application: application,
     })
     */
-    return new CodeDeployEcsDeployAction({
-      actionName: `DeployAction`,
-      deploymentGroup : deploymentGroup,
-      taskDefinitionTemplateInput: buildArtifact,
-      appSpecTemplateInput: buildArtifact,
-      containerImageInputs: [{
-        input: buildArtifact,
-      }],
-    });
     /*
     return new EcsDeployAction({
         actionName: `DeployAction`,
@@ -141,8 +123,8 @@ export class ServicePipelineConstruct extends Construct {
   }
 
   private createCodeBuildProject = (): PipelineProject => {
-    const codeBuildProject = new PipelineProject(this, `${this.pipelineConfig.pipelineName}-CodebuildProject`, {
-        projectName: `${this.pipelineConfig.pipelineName}-CodebuildProject`,
+    const codeBuildProject = new PipelineProject(this, `${this.config.serviceName}-Codebuild`, {
+        projectName: `${this.config.serviceName}-Codebuild`,
         environment: {
             buildImage: LinuxBuildImage.STANDARD_5_0,
             privileged: true,
@@ -168,16 +150,16 @@ export class ServicePipelineConstruct extends Construct {
   private getEnvironmentVariables = () => {
     return {
         ACCOUNT_ID: {
-            value: this.scope.account
+            value: this.account
         },
         ACCOUNT_REGION: {
-            value: this.scope.region
+            value: this.region
         },
         ECR_REPO: {
-            value:  this.config.repo.ecrRepo.repositoryUri
+            value:  this.config.ecrRepo.repositoryUri
         },
         IMAGE_NAME: {
-            value: this.config.repo.ecrRepo.repositoryName
+            value: this.config.ecrRepo.repositoryName
         },
     };
 }

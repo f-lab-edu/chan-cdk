@@ -1,8 +1,8 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { CodePipeline, ShellStep, CodePipelineSource } from 'aws-cdk-lib/pipelines';
-import { ServiceRegistrationStage } from '../stages/ServiceRegistrationStage';
-import { INFRA_GIT_REPO } from '../../config/applicationConfig'
+import { serviceRegistrationStage } from '../stages/serviceRegistrationStage';
+import { INFRA_GIT_REPO } from '../../config/repositoryConfig'
 
 export class InfraCicdStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
@@ -26,6 +26,9 @@ export class InfraCicdStack extends Stack {
 
     });
 
-    pipeline.addStage(new ServiceRegistrationStage(this, "ServiceRegistration"));
+    pipeline.addStage(new serviceRegistrationStage(this, "registrationStage", {
+      env: props?.env,
+    }));
+
   }
 }

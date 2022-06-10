@@ -1,4 +1,9 @@
-import { GitRepo } from "../lib/construct/RepoConstruct";
+export type GitRepo = {
+  owner: string,
+  repoName: string,
+  branch: string,
+  tokenName: string,
+}
 
 export const INFRA_GIT_REPO:GitRepo = { 
   owner: 'revino',
