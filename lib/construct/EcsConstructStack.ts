@@ -45,9 +45,9 @@ export class EcsConstructStack extends Stack{
       capacity: {
         autoScalingGroupName: `${props.serviceName}-asg`,
         instanceType: ec2.InstanceType.of(ec2.InstanceClass.T2, ec2.InstanceSize.MICRO),
-        desiredCapacity: 1,
+        desiredCapacity: 2,
         maxCapacity: 4,
-        minCapacity: 1,
+        minCapacity: 2,
       },
     });
 
@@ -79,7 +79,7 @@ export class EcsConstructStack extends Stack{
       cluster: cluster,
       cpu: 256,
       memoryLimitMiB: 256,
-      desiredCount: 1,
+      desiredCount: 2,
       minHealthyPercent: 50,
       maxHealthyPercent: 300,
       serviceName: props.serviceName,
