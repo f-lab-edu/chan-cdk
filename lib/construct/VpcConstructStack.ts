@@ -38,7 +38,7 @@ export class VpcConstructStack extends Stack{
       cidr: props.cidr,
       natGatewayProvider: natGatewayProvider,
       subnetConfiguration: [
-        { name: 'public' , cidrMask: 24, subnetType: ec2.SubnetType.PUBLIC           },
+        { name: 'public' , cidrMask: 24, subnetType: ec2.SubnetType.PUBLIC          ,  },
         { name: 'private', cidrMask: 24, subnetType: ec2.SubnetType.PRIVATE_WITH_NAT },
         { name: 'isolate', cidrMask: 24, subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       ],

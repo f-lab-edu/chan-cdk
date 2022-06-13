@@ -36,7 +36,7 @@ export class ServiceCicdConstruct extends Stack {
         bucketName: `${config.serviceName}-pipeline`,
         removalPolicy: RemovalPolicy.DESTROY,
         autoDeleteObjects: true,
-      })});
+    })});
 
     //Source Stage
     const sourceOutput = new Artifact();
@@ -55,12 +55,13 @@ export class ServiceCicdConstruct extends Stack {
     new CfnOutput(this, 'BeatServiceName', { value: config.serviceBeta.service.serviceName});
     new CfnOutput(this, 'BeatClusterName', { value: config.serviceBeta.service.cluster.clusterName});
 
-    /* 검증 필요
+    /*
+    검증 필요
     //Approve Stage
     const manualApprovalAction = this.getEcsApproveActioin();
     pipeline.addStage({stageName: 'Manual approval', actions: [manualApprovalAction],})
 
-    //Deploy Beta Stage
+    //Deploy Prod Stage
     const deployProdAction = this.getEcsDeployActioin(buildOutput);
     pipeline.addStage({stageName: 'Deploy-Beta', actions: [deployProdAction],})
     */

@@ -12,9 +12,9 @@ export const INFRA_GIT_REPO:GitRepo = {
   tokenName: 'github-token',
 };
 
-export const ORDER_GIT_REPO:GitRepo  = { 
+export const CUSTOMER_GIT_REPO:GitRepo  = { 
   owner: 'revino',
-  repoName: 'chan_Order_Sample', 
+  repoName: 'chan_customer_test', 
   branch: 'main',
   tokenName: 'github-token',
 };

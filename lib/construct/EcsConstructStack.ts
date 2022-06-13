@@ -9,6 +9,7 @@ import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as elbtargets from 'aws-cdk-lib/aws-elasticloadbalancingv2-targets';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import { Secret } from 'aws-cdk-lib/aws-ecs';
+import { VpcLink } from 'aws-cdk-lib/aws-apigateway';
 
 export type EcsConstructProps = {
   serviceName: string,
@@ -26,6 +27,7 @@ export class EcsConstructStack extends Stack{
   public readonly service:ecsp.ApplicationLoadBalancedEc2Service;
   public readonly cluster:ecs.Cluster;
   public readonly loadbalance:elb.NetworkLoadBalancer;
+  public readonly vpcLink:VpcLink;
 
   constructor(scope: Construct, id: string, props: EcsConstructProps){
     super(scope, id, props.stackProps);
@@ -43,9 +45,9 @@ export class EcsConstructStack extends Stack{
       capacity: {
         autoScalingGroupName: `${props.serviceName}-asg`,
         instanceType: ec2.InstanceType.of(ec2.InstanceClass.T2, ec2.InstanceSize.MICRO),
-        desiredCapacity: 2,
-        maxCapacity: 10,
-        minCapacity: 2,
+        desiredCapacity: 1,
+        maxCapacity: 4,
+        minCapacity: 1,
       },
     });
 
@@ -77,7 +79,7 @@ export class EcsConstructStack extends Stack{
       cluster: cluster,
       cpu: 256,
       memoryLimitMiB: 256,
-      desiredCount: 2,
+      desiredCount: 1,
       minHealthyPercent: 50,
       maxHealthyPercent: 300,
       serviceName: props.serviceName,
@@ -104,7 +106,7 @@ export class EcsConstructStack extends Stack{
       loadBalancerName: `${props.serviceName}-nlb`,
       vpc,
       crossZoneEnabled: true,
-      internetFacing: true,
+      internetFacing: false,
     });
     
     const listener = nlb.addListener('listener', { port: 80 });
@@ -114,10 +116,16 @@ export class EcsConstructStack extends Stack{
       port: 80,
     });
 
+    const vpclink = new VpcLink(this, 'link', {
+     vpcLinkName: `${props.serviceName}-vpc`,
+       targets: [ nlb ],
+   });
+
     nlbTagerGroup.node.addDependency(service.listener);
 
     new CfnOutput(this, 'NlbEndpoint', { value: `http://${nlb.loadBalancerDnsName}`});
 
+    this.vpcLink = vpclink;
     this.loadbalance = nlb;
     this.service = service;
     this.cluster = cluster;

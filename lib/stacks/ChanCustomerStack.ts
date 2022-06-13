@@ -2,35 +2,32 @@
 import { Construct } from 'constructs';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import { StackProps, Stack } from 'aws-cdk-lib';
 import { RepoConstructStack } from '../construct/RepoConstructStack';
 import { VpcConstructStack } from '../construct/VpcConstructStack';
 import { RdsConstructStack } from '../construct/RdsConstructStack';
 import { EcsConstructStack } from '../construct/EcsConstructStack';
-import { ApiGatewayConstructStack } from '../construct/ApiGatewayConstructStack';
 import { ServiceCicdConstruct } from '../construct/ServiceCicdConstruct';
-import { ORDER_GIT_REPO } from '../../config/repositoryConfig';
+import { CUSTOMER_GIT_REPO } from '../../config/repositoryConfig';
 
-export class OrderStack extends Stack{
+export type ChanOrderProps = {
+  applicationName: string,
+  apigateway: apigateway.RestApi,
+  stackProps: StackProps,
+} 
 
-  constructor(scope: Construct, id: string, props: StackProps){
-    super(scope, id, props);
+export class ChanCustomerStack extends Stack{
+
+  constructor(scope: Construct, id: string, props: ChanOrderProps){
+    super(scope, id, props.stackProps);
     
-    const applicationName = 'chanorderservice'.toLocaleLowerCase();
+    const applicationName = props.applicationName.toLocaleLowerCase();
+
     const betaConfig = {
       Cidr : '10.0.0.0/16',
-      ServiceName : `${applicationName}Beta`,
-      vpcName: `${applicationName}Beta-vpc`,
-      ContainerPort : 8080,
-      dbInstanceName: `${applicationName}Beta`,
-      dbPort : 5432,
-      dbAdminName : 'postgres',
-    }
-
-    const prodConfig = {
-      Cidr : '10.0.100.0/16',
       ServiceName : `${applicationName}`,
-      vpcName: `${applicationName}-vpc`,
+      vpcName: `${applicationName}Beta-vpc`,
       ContainerPort : 8080,
       dbInstanceName: `${applicationName}`,
       dbPort : 5432,
@@ -40,20 +37,20 @@ export class OrderStack extends Stack{
     //GitHub & ECR repository Setting
      const serviceRepo = new RepoConstructStack(this, `repo`, {
       ecrName: applicationName, 
-      gitRepo: ORDER_GIT_REPO,
-      ecrLoad: true,
-      stackProps: {stackName : `${applicationName}-repo`, env: props.env}
+      gitRepo: CUSTOMER_GIT_REPO,
+      ecrLoad: false,
+      stackProps: {stackName : `${props.stackProps.stackName}-repo`, env: props.stackProps.env}
     });
     
     //VPC Setting
-    const vpcBeta = new VpcConstructStack(this, id, {
+    const vpcBeta = new VpcConstructStack(this, 'vpcBeta', {
       vpcName: betaConfig.vpcName,
       azs: 2,
       cidr: betaConfig.Cidr,
-      stackProps: {stackName : `${betaConfig.ServiceName}-vpc`, env: props.env}
+      stackProps: {stackName : `${props.stackProps.stackName}-vpc`, env: props.stackProps.env}
     });
 
-    //Rds
+    //Rds Setting
     const rdsBeta = new RdsConstructStack(this, 'rdsBeta', {
       dbName: betaConfig.ServiceName,
       allocatedStorageGb: 5,
@@ -66,10 +63,10 @@ export class OrderStack extends Stack{
       }),
       dbAdminName: betaConfig.dbAdminName,
       dbKeyName: betaConfig.ServiceName,
-      stackProps: {stackName : `${betaConfig.ServiceName}-rds`, env: props.env}
+      stackProps: {stackName : `${props.stackProps.stackName}-rds`, env: props.stackProps.env}
     })
   
-    //Construct ECS
+    //Ecs Setting
     const serviceBeta = new EcsConstructStack(this, `ecsBeta`,  {
       serviceName: betaConfig.ServiceName,
       clusterName: `${betaConfig.ServiceName}-cluster`,
@@ -78,24 +75,16 @@ export class OrderStack extends Stack{
       db: rdsBeta.db,
       ecrRepo: serviceRepo.ecrRepo,
       containerPort: betaConfig.ContainerPort,
-      stackProps: {stackName : `${betaConfig.ServiceName}-ecs`, env: props.env}
+      stackProps: {stackName : `${props.stackProps.stackName}-ecs`, env: props.stackProps.env}
     });
 
-    //Consturc ApiGateway
-    const api = new ApiGatewayConstructStack(this, 'apigateway', {
-      serviceName: applicationName,
-      vpc: vpcBeta.vpc,
-      endpoint: serviceBeta.loadbalance,
-      stackProps: {stackName : `${applicationName}-apigateway`, env: props.env}
-    })
-
-    //Construct CI / CD
+    //CI / CD Setting
     const serviceCicd = new ServiceCicdConstruct(this, `cicd`, {
       serviceName: applicationName,
       gitRepo: serviceRepo.gitRepo,
       ecrRepo: serviceRepo.ecrRepo,
       serviceBeta: serviceBeta.service,
-      stackProps: {stackName : `${applicationName}-cicd`, env: props.env}
+      stackProps: {stackName : `${props.stackProps.stackName}-cicd`, env: props.stackProps.env}
     });
 
     //Dependency Add
@@ -104,10 +93,6 @@ export class OrderStack extends Stack{
     serviceBeta.node.addDependency(vpcBeta);
     serviceBeta.node.addDependency(rdsBeta);
     serviceBeta.node.addDependency(serviceRepo);
-
-    api.node.addDependency(vpcBeta);
-    api.node.addDependency(serviceBeta);
-    api.node.addDependency(serviceRepo);
 
     serviceCicd.node.addDependency(serviceRepo);
   }
