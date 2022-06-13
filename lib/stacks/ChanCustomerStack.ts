@@ -11,7 +11,7 @@ import { EcsConstructStack } from '../construct/EcsConstructStack';
 import { ServiceCicdConstruct } from '../construct/ServiceCicdConstruct';
 import { CUSTOMER_GIT_REPO } from '../../config/repositoryConfig';
 
-export type ChanOrderProps = {
+export type ChanCustomerProps = {
   applicationName: string,
   apigateway: apigateway.RestApi,
   stackProps: StackProps,
@@ -19,7 +19,7 @@ export type ChanOrderProps = {
 
 export class ChanCustomerStack extends Stack{
 
-  constructor(scope: Construct, id: string, props: ChanOrderProps){
+  constructor(scope: Construct, id: string, props: ChanCustomerProps){
     super(scope, id, props.stackProps);
     
     const applicationName = props.applicationName.toLocaleLowerCase();
