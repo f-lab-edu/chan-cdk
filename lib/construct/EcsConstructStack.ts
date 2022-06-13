@@ -88,7 +88,7 @@ export class EcsConstructStack extends Stack{
     });
     
     service.targetGroup.configureHealthCheck({
-      "path": '/',
+      "path": '/checkHealth',
       "interval": Duration.seconds(5),
       "timeout": Duration.seconds(4),
       "healthyThresholdCount": 2,
