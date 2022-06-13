@@ -121,7 +121,7 @@ export class EcsConstructStack extends Stack{
        targets: [ nlb ],
    });
 
-    //nlbTagerGroup.node.addDependency(service.listener);
+    nlbTagerGroup.node.addDependency(service.listener);
 
     new CfnOutput(this, 'NlbEndpoint', { value: `http://${nlb.loadBalancerDnsName}`});
 
