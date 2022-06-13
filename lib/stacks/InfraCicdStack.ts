@@ -31,7 +31,6 @@ export class InfraCicdStack extends Stack {
       env: props?.env,
     }));
 
-
     pipeline.addStage(new SellerStage(this, "SellerRegistration", {
       env: props?.env,
     }));

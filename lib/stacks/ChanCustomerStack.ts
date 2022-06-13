@@ -34,7 +34,7 @@ export class ChanCustomerStack extends Stack{
     }
 
     //GitHub & ECR repository Setting
-     const serviceRepo = new RepoConstructStack(this, `repo`, {
+     const serviceRepo = new RepoConstructStack(this, `${applicationName}repo`, {
       ecrName: applicationName, 
       gitRepo: CUSTOMER_GIT_REPO,
       ecrLoad: false,
@@ -42,7 +42,7 @@ export class ChanCustomerStack extends Stack{
     });
     
     //VPC Setting
-    const vpcBeta = new VpcConstructStack(this, 'vpcBeta', {
+    const vpcBeta = new VpcConstructStack(this, `${applicationName}vpcBeta`, {
       vpcName: betaConfig.vpcName,
       azs: 2,
       cidr: betaConfig.Cidr,
@@ -50,7 +50,7 @@ export class ChanCustomerStack extends Stack{
     });
 
     //Rds Setting
-    const rdsBeta = new RdsConstructStack(this, 'rdsBeta', {
+    const rdsBeta = new RdsConstructStack(this, `${applicationName}rdsBeta`, {
       dbName: betaConfig.ServiceName,
       allocatedStorageGb: 5,
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
@@ -66,7 +66,7 @@ export class ChanCustomerStack extends Stack{
     })
   
     //Ecs Setting
-    const serviceBeta = new EcsConstructStack(this, `ecsBeta`,  {
+    const serviceBeta = new EcsConstructStack(this, `${applicationName}ecsBeta`,  {
       serviceName: betaConfig.ServiceName,
       clusterName: `${betaConfig.ServiceName}-cluster`,
       dbKeyName: betaConfig.ServiceName,
@@ -78,7 +78,7 @@ export class ChanCustomerStack extends Stack{
     });
 
     //CI / CD Setting
-    const serviceCicd = new ServiceCicdConstruct(this, `cicd`, {
+    const serviceCicd = new ServiceCicdConstruct(this, `${applicationName}cicd`, {
       serviceName: applicationName,
       gitRepo: serviceRepo.gitRepo,
       ecrRepo: serviceRepo.ecrRepo,

@@ -34,7 +34,7 @@ export class ChanSellerStack extends Stack{
     }
 
     //GitHub & ECR repository Setting
-     const serviceRepo = new RepoConstructStack(this, `repo`, {
+     const serviceRepo = new RepoConstructStack(this, `${applicationName}repo`, {
       ecrName: applicationName, 
       gitRepo: CUSTOMER_GIT_REPO,
       ecrLoad: false,
@@ -42,15 +42,16 @@ export class ChanSellerStack extends Stack{
     });
     
     //VPC Setting
-    const vpcBeta = new VpcConstructStack(this, 'vpcBeta', {
+    const vpcBeta = new VpcConstructStack(this, `${applicationName}vpcBeta`, {
       vpcName: betaConfig.vpcName,
       azs: 2,
       cidr: betaConfig.Cidr,
       stackProps: {stackName : `${props.stackProps.stackName}-vpc`, env: props.stackProps.env}
     });
 
+    
     //Rds Setting
-    const rdsBeta = new RdsConstructStack(this, 'rdsBeta', {
+    const rdsBeta = new RdsConstructStack(this, `${applicationName}rdsBeta`, {
       dbName: betaConfig.ServiceName,
       allocatedStorageGb: 5,
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
@@ -64,9 +65,9 @@ export class ChanSellerStack extends Stack{
       dbKeyName: betaConfig.ServiceName,
       stackProps: {stackName : `${props.stackProps.stackName}-rds`, env: props.stackProps.env}
     })
-  
+    
     //Ecs Setting
-    const serviceBeta = new EcsConstructStack(this, `ecsBeta`,  {
+    const serviceBeta = new EcsConstructStack(this, `${applicationName}ecsBeta`,  {
       serviceName: betaConfig.ServiceName,
       clusterName: `${betaConfig.ServiceName}-cluster`,
       dbKeyName: betaConfig.ServiceName,
@@ -76,16 +77,16 @@ export class ChanSellerStack extends Stack{
       containerPort: betaConfig.ContainerPort,
       stackProps: {stackName : `${props.stackProps.stackName}-ecs`, env: props.stackProps.env}
     });
-
+    
     //CI / CD Setting
-    const serviceCicd = new ServiceCicdConstruct(this, `cicd`, {
+    const serviceCicd = new ServiceCicdConstruct(this, `${applicationName}cicd`, {
       serviceName: applicationName,
       gitRepo: serviceRepo.gitRepo,
       ecrRepo: serviceRepo.ecrRepo,
       serviceBeta: serviceBeta.service,
       stackProps: {stackName : `${props.stackProps.stackName}-cicd`, env: props.stackProps.env}
     });
-
+    /*
     //Dependency Add
     rdsBeta.node.addDependency(vpcBeta);
 
@@ -94,5 +95,6 @@ export class ChanSellerStack extends Stack{
     serviceBeta.node.addDependency(serviceRepo);
 
     serviceCicd.node.addDependency(serviceRepo);
+    */
   }
 }
