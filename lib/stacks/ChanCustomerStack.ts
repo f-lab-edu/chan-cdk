@@ -13,7 +13,6 @@ import { CUSTOMER_GIT_REPO } from '../../config/repositoryConfig';
 
 export type ChanCustomerProps = {
   applicationName: string,
-  apigateway: apigateway.RestApi,
   stackProps: StackProps,
 } 
 
