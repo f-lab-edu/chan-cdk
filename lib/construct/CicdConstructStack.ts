@@ -20,7 +20,7 @@ export interface PipelineConfig{
   stackProps?: StackProps,
 }
 
-export class ServiceCicdConstruct extends Stack {
+export class CicdConstructStack extends Stack {
 
   private readonly config:PipelineConfig;
 
@@ -51,9 +51,6 @@ export class ServiceCicdConstruct extends Stack {
     //Deploy Beta Stage
     const deployBetaAction = this.getEcsBetaDeployActioin(buildOutput);
     pipeline.addStage({stageName: 'Deploy-Beta', actions: [deployBetaAction],})
-
-    new CfnOutput(this, 'BeatServiceName', { value: config.serviceBeta.service.serviceName});
-    new CfnOutput(this, 'BeatClusterName', { value: config.serviceBeta.service.cluster.clusterName});
 
     /*
     검증 필요
@@ -88,13 +85,15 @@ export class ServiceCicdConstruct extends Stack {
   }
 
   private getEcsBetaDeployActioin = (buildArtifact: Artifact):EcsDeployAction => {
+    
     return new EcsDeployAction({
         actionName: `DeployAction`,
         service: this.config.serviceBeta.service,
         input: buildArtifact,
     });
+    
   }
-                                                  
+                                                
   private getEcsApproveActioin = () : ManualApprovalAction => {
 
     const action = new ManualApprovalAction({
@@ -109,8 +108,9 @@ export class ServiceCicdConstruct extends Stack {
 
   private createCodeBuildProject = (): PipelineProject => {
     const buildspec = buildSpecContent;
+    
     buildspec.phases.post_build.commands.push(
-      `printf \'[{"name":"${this.config.serviceBeta.service.serviceName}-container","imageUri":"%s"}]\' $ECR_REPO:latest > imagedefinitions.json`
+      `printf \'[{"name":"${this.config.serviceName}-container","imageUri":"%s"}]\' $ECR_REPO:latest > imagedefinitions.json`
     )
     
     const codeBuildProject = new PipelineProject(this, `${this.config.serviceName}-Codebuild`, {
