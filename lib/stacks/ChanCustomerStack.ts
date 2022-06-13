@@ -87,6 +87,7 @@ export class ChanCustomerStack extends Stack{
     });
 
     //Dependency Add
+    /*
     rdsBeta.node.addDependency(vpcBeta);
 
     serviceBeta.node.addDependency(vpcBeta);
@@ -94,5 +95,6 @@ export class ChanCustomerStack extends Stack{
     serviceBeta.node.addDependency(serviceRepo);
 
     serviceCicd.node.addDependency(serviceRepo);
+    */
   }
 }
