@@ -80,7 +80,7 @@ export class ChanSellerStack extends Stack{
     
     //CI / CD Setting
     const serviceCicd = new CicdConstructStack(this, `cicd`, {
-      serviceName: `${applicationName}-service`,
+      serviceName: `${applicationName}`,
       gitRepo: serviceRepo.gitRepo,
       ecrRepo: serviceRepo.ecrRepo,
       serviceBeta: serviceBeta.service,

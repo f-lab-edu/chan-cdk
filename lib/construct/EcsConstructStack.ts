@@ -106,7 +106,7 @@ export class EcsConstructStack extends Stack{
       loadBalancerName: `${props.serviceName}-nlb`,
       vpc,
       crossZoneEnabled: true,
-      internetFacing: false,
+      internetFacing: true,
     });
     
     const listener = nlb.addListener('listener', { port: 80 });
