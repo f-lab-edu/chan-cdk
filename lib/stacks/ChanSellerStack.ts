@@ -24,7 +24,7 @@ export class ChanSellerStack extends Stack{
     const applicationName = props.applicationName.toLocaleLowerCase();
 
     const betaConfig = {
-      Cidr : '10.0.1.0/16',
+      Cidr : '10.1.0.0/16',
       ServiceName : `${applicationName}`,
       vpcName: `${applicationName}Beta-vpc`,
       ContainerPort : 8080,
