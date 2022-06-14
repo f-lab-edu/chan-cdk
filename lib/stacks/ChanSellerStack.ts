@@ -8,7 +8,7 @@ import { RepoConstructStack } from '../construct/RepoConstructStack';
 import { VpcConstructStack } from '../construct/VpcConstructStack';
 import { RdsConstructStack } from '../construct/RdsConstructStack';
 import { EcsConstructStack } from '../construct/EcsConstructStack';
-import { CUSTOMER_GIT_REPO } from '../../config/repositoryConfig';
+import { CUSTOMER_GIT_REPO, Seller_GIT_REPO } from '../../config/repositoryConfig';
 import { CicdConstructStack } from '../construct/CicdConstructStack';
 
 export type ChanSellerProps = {
@@ -36,7 +36,7 @@ export class ChanSellerStack extends Stack{
     //GitHub & ECR repository Setting
      const serviceRepo = new RepoConstructStack(this, `repo`, {
       ecrName: applicationName, 
-      gitRepo: CUSTOMER_GIT_REPO,
+      gitRepo: Seller_GIT_REPO,
       ecrLoad: false,
       stackProps: {stackName : `${props.stackProps.stackName}-repo`, env: props.stackProps.env}
     });
