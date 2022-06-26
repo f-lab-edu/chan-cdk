@@ -2,100 +2,104 @@
 import { Construct } from 'constructs';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as apigateway from 'aws-cdk-lib/aws-apigateway';
-import { StackProps, Stack } from 'aws-cdk-lib';
+import { Fn, Stack } from 'aws-cdk-lib';
 import { RepoConstructStack } from '../construct/RepoConstructStack';
-import { VpcConstructStack } from '../construct/VpcConstructStack';
-import { RdsConstructStack } from '../construct/RdsConstructStack';
 import { EcsConstructStack } from '../construct/EcsConstructStack';
-import { CUSTOMER_GIT_REPO, Seller_GIT_REPO } from '../../config/repositoryConfig';
-import { CicdConstructStack } from '../construct/CicdConstructStack';
-
-export type ChanSellerProps = {
-  applicationName: string,
-  stackProps: StackProps,
-} 
+import { SELLER_GIT_REPO } from '../../config/repositoryConfig';
+import { ChanServiceProps, SERVICE } from './ChanStack';
+import { SellerApiStack } from '../api/SellerApiStack';
+import { EndpointConstructStack } from '../construct/EndpointConstructStack';
+import { RdsConstructStack } from '../construct/RdsConstructStack';
 
 export class ChanSellerStack extends Stack{
 
-  constructor(scope: Construct, id: string, props: ChanSellerProps){
+  constructor(scope: Construct, id: string, props: ChanServiceProps){
     super(scope, id, props.stackProps);
-    
-    const applicationName = props.applicationName.toLocaleLowerCase();
+ 
+    const applicationName = props.appllicationName.toLocaleLowerCase();
 
     const betaConfig = {
-      Cidr : '10.1.0.0/16',
-      ServiceName : `${applicationName}`,
-      vpcName: `${applicationName}Beta-vpc`,
+      serviceName : `${applicationName}`,
       ContainerPort : 8080,
       dbInstanceName: `${applicationName}`,
       dbPort : 5432,
       dbAdminName : 'postgres',
     }
-
+    
+    const vpc = props.vpc;
+    
     //GitHub & ECR repository Setting
      const serviceRepo = new RepoConstructStack(this, `repo`, {
       ecrName: applicationName, 
-      gitRepo: Seller_GIT_REPO,
+      gitRepo: SELLER_GIT_REPO,
       ecrLoad: false,
       stackProps: {stackName : `${props.stackProps.stackName}-repo`, env: props.stackProps.env}
     });
-    
-    //VPC Setting
-    const vpcBeta = new VpcConstructStack(this, `vpcBeta`, {
-      vpcName: betaConfig.vpcName,
-      azs: 2,
-      cidr: betaConfig.Cidr,
-      stackProps: {stackName : `${props.stackProps.stackName}-vpc`, env: props.stackProps.env}
-    });
 
-    
     //Rds Setting
-    const rdsBeta = new RdsConstructStack(this, `rdsBeta`, {
-      dbName: betaConfig.ServiceName,
+    const rdsInsatnce = new RdsConstructStack(this, `rds`, {
+      dbName: betaConfig.serviceName,
       allocatedStorageGb: 5,
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
-      vpc: vpcBeta.vpc,
+      vpc,
       port: betaConfig.dbPort,
-      subnetType: ec2.SubnetType.PUBLIC,
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_14_2
       }),
       dbAdminName: betaConfig.dbAdminName,
-      dbKeyName: betaConfig.ServiceName,
+      dbKeyName: betaConfig.serviceName,
       stackProps: {stackName : `${props.stackProps.stackName}-rds`, env: props.stackProps.env}
     })
-    
+
+    //endpoint Setting
+    const endpoints = new EndpointConstructStack(this, 'endpoint', {
+      serviceName: betaConfig.serviceName,
+      vpc,
+      serviceId: SERVICE.SELLER,
+      serviceList: props.endpoints,
+      stackProps: {stackName : `${props.stackProps.stackName}-endpoint`, env: props.stackProps.env},
+    })
+
+    const dns = {
+      [SERVICE.CUSTOMER]: Fn.importValue(`${betaConfig.serviceName}-${SERVICE.CUSTOMER.toString()}-dns`),
+    }
+
     //Ecs Setting
-    const serviceBeta = new EcsConstructStack(this, `ecsBeta`,  {
-      serviceName: betaConfig.ServiceName,
-      clusterName: `${betaConfig.ServiceName}-cluster2`,
-      dbKeyName: betaConfig.ServiceName,
-      vpc: vpcBeta.vpc,
-      db: rdsBeta.db,
+    const service = new EcsConstructStack(this, `ecs`,  {
+      serviceName: betaConfig.serviceName,
+      clusterName: `${betaConfig.serviceName}-cluster`,
+      dbKeyName: betaConfig.serviceName,
+      vpc,
+      loadbalancer: props.loadbalancer,
+      containerEnv:{
+        ENDPOINT_CUSTOMER: dns[SERVICE.CUSTOMER],
+      },
+      db: rdsInsatnce.db,
       ecrRepo: serviceRepo.ecrRepo,
       containerPort: betaConfig.ContainerPort,
-      stackProps: {stackName : `${props.stackProps.stackName}-ecs`, env: props.stackProps.env}
+      stackProps: {stackName : `${props.stackProps.stackName}-ecs`, env: props.stackProps.env},
+    });
+    service.addDependency(endpoints);
+    
+    const restApi = new SellerApiStack(this, `api`,  {
+      serviceName: betaConfig.serviceName,
+      vpc,
+      apigateway: props.httpApi,
+      loadbalancer: props.loadbalancer,
+      listener: service.listner,
+      stackProps: {stackName : `${props.stackProps.stackName}-api`, env: props.stackProps.env}
     });
     
+    /*
     //CI / CD Setting
     const serviceCicd = new CicdConstructStack(this, `cicd`, {
       serviceName: `${applicationName}`,
       gitRepo: serviceRepo.gitRepo,
       ecrRepo: serviceRepo.ecrRepo,
-      serviceBeta: serviceBeta.service,
+      //serviceBeta: service.service,
       stackProps: {stackName : `${props.stackProps.stackName}-cicd`, env: props.stackProps.env}
     });
-    
-    
-    //Dependency Add
-    rdsBeta.node.addDependency(vpcBeta);
-
-    serviceBeta.node.addDependency(vpcBeta);
-    serviceBeta.node.addDependency(rdsBeta);
-    serviceBeta.node.addDependency(serviceRepo);
-
-    serviceCicd.node.addDependency(serviceRepo);
-    
+    */
   }
+
 }

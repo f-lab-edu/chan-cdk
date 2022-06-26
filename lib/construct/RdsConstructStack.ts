@@ -7,7 +7,6 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 export type RdsConstructProps = {
   vpc: ec2.Vpc,
   port: number,
-  subnetType: ec2.SubnetType,
   engine: rds.IInstanceEngine,
   dbName: string,
   allocatedStorageGb: number,
@@ -46,14 +45,17 @@ export class RdsConstructStack extends Stack{
       allowAllOutbound: true,
     });
 
-    vpc.privateSubnets.forEach( (subnet) =>{
+    rdsSecurityGroup.addIngressRule(ec2.Peer.ipv4(props.vpc.vpcCidrBlock), ec2.Port.tcp(props.port));
+
+    /*
+    vpc.isolatedSubnets.forEach( (subnet) =>{
       rdsSecurityGroup.addIngressRule(ec2.Peer.ipv4(subnet.ipv4CidrBlock), ec2.Port.tcp(props.port));
     })
-
+    */
+   
     const db = new rds.DatabaseInstance(this, 'RdsInstance', {
       databaseName: props.dbName,
       vpc,
-      vpcSubnets: {subnetType: props.subnetType},
       port: props.port,
       engine: props.engine,
       instanceType: props.instanceType,

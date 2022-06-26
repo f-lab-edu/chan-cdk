@@ -1,24 +1,24 @@
 
 import { Construct } from 'constructs';
-import * as ecs from 'aws-cdk-lib/aws-ecs';
-import * as ecsp from 'aws-cdk-lib/aws-ecs-patterns';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as ecr from 'aws-cdk-lib/aws-ecr';
+import * as agw from 'aws-cdk-lib/aws-apigateway';
 import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
-import { Duration, StackProps, Stack, Environment } from 'aws-cdk-lib';
-import { StringifyOptions } from 'querystring';
-import envKor from '../../config/envKor';
+import {StackProps, Stack, CfnOutput } from 'aws-cdk-lib';
+import { VpcEndpointService } from 'aws-cdk-lib/aws-ec2';
+import { SSL_OP_NO_SSLv2 } from 'constants';
 
 export type VpcProps = {
-  vpcName: string,
+  serviceName: string,
   cidr: string,
-  azs: number,
+  azs?: number ,
   stackProps?: StackProps,
 }
 
 export class VpcConstructStack extends Stack{
 
   public readonly vpc:ec2.Vpc;
+  public readonly endpointService:ec2.VpcEndpointService;
+  public readonly loadbalancer: elb.NetworkLoadBalancer;
 
   constructor(scope: Construct, id: string, props: VpcProps){
     super(scope, id, props.stackProps);
@@ -28,22 +28,55 @@ export class VpcConstructStack extends Stack{
       instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MICRO),
     });
     
-    //Load balancer, nat instance는 public에
-    //applicaion instance는 private에
-    //db는 isolate에
     //mask는 24면 2^8 - 5 = 251개씩 사용 가능
     const vpc = new ec2.Vpc(this, 'vpc', { 
-      vpcName: props.vpcName,
-      maxAzs: props.azs,
+      vpcName: `${props.serviceName}-vpc`,
+      maxAzs: props.azs?? 3,
       cidr: props.cidr,
-      natGatewayProvider: natGatewayProvider,
+      natGateways: 0,
+      //natGatewayProvider: natGatewayProvider,
       subnetConfiguration: [
-        { name: 'public' , cidrMask: 24, subnetType: ec2.SubnetType.PUBLIC          ,  },
-        { name: 'private', cidrMask: 24, subnetType: ec2.SubnetType.PRIVATE_WITH_NAT },
         { name: 'isolate', cidrMask: 24, subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+        //{ name: 'private', cidrMask: 24, subnetType: ec2.SubnetType.PRIVATE_WITH_NAT },
+        { name: 'public' , cidrMask: 24, subnetType: ec2.SubnetType.PUBLIC           },
       ],
+      //비용으로 인해 테스트시에만 nat gateway 사용
+      gatewayEndpoints: {
+        S3: {
+          service: ec2.GatewayVpcEndpointAwsService.S3,
+        },
+      },
     });
 
+    const serviceList = [
+      {name:'ecr'       , service:ec2.InterfaceVpcEndpointAwsService.ECR           },
+      {name:'ecr-docker', service:ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER    },
+      {name:'ecr-agent' , service:ec2.InterfaceVpcEndpointAwsService.ECS_AGENT     },
+      {name:'ecs-tel'   , service:ec2.InterfaceVpcEndpointAwsService.ECS_TELEMETRY },
+      {name:'ecs'       , service:ec2.InterfaceVpcEndpointAwsService.ECS           },
+      {name:'secret'    , service:ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER},
+    ]  
+       
+    //비용으로 인해 테스트시에만 nat gateway 사용
+    serviceList.forEach( el => 
+      vpc.addInterfaceEndpoint(el.name, {
+        service: el.service
+    }));
+   
+    const nlb = new elb.NetworkLoadBalancer(this, 'nlb', {
+      loadBalancerName: `${props.serviceName}-nlb`,
+      vpc,
+      crossZoneEnabled: false,
+      internetFacing: false,
+    });
+
+    const endpointService = new ec2.VpcEndpointService(this, 'endpointService', {
+      vpcEndpointServiceLoadBalancers: [ nlb ],
+      acceptanceRequired: false,
+    });
+
+    this.endpointService = endpointService;
+    this.loadbalancer = nlb;
     this.vpc = vpc;
   }
 }

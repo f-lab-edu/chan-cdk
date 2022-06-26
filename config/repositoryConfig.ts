@@ -19,7 +19,7 @@ export const CUSTOMER_GIT_REPO:GitRepo  = {
   tokenName: 'github-token',
 };
 
-export const Seller_GIT_REPO:GitRepo  = { 
+export const SELLER_GIT_REPO:GitRepo  = { 
   owner: 'revino',
   repoName: 'chan_seller_test', 
   branch: 'main',

@@ -1,6 +1,6 @@
 
 import { Construct } from 'constructs';
-import { CfnOutput, Duration, Stack, StackProps } from 'aws-cdk-lib';
+import { CfnOutput, Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsp from 'aws-cdk-lib/aws-ecs-patterns';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
@@ -10,24 +10,28 @@ import * as elbtargets from 'aws-cdk-lib/aws-elasticloadbalancingv2-targets';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import { Secret } from 'aws-cdk-lib/aws-ecs';
 import { VpcLink } from 'aws-cdk-lib/aws-apigateway';
+import { Protocol, SubnetType } from 'aws-cdk-lib/aws-ec2';
+import { AutoScalingGroup } from 'aws-cdk-lib/aws-autoscaling';
+import { SERVICE } from '../stacks/ChanStack';
 
 export type EcsConstructProps = {
   serviceName: string,
   ecrRepo: ecr.IRepository,
   containerPort: number,
   vpc: ec2.Vpc
+  loadbalancer: elb.NetworkLoadBalancer,
   db: rds.DatabaseInstance,
   dbKeyName: string,
   clusterName: String,
+  containerEnv: {[key : string]: string},
+  //endpointDns: { [key in SERVICE]?: string},
   stackProps?: StackProps,
 }
 
 export class EcsConstructStack extends Stack{
 
-  public readonly service:ecsp.ApplicationLoadBalancedEc2Service;
-  public readonly cluster:ecs.Cluster;
-  public readonly loadbalance:elb.NetworkLoadBalancer;
-  public readonly vpcLink:VpcLink;
+  public readonly loadbalancer: elb.NetworkLoadBalancer;
+  public readonly listner: elb.NetworkListener;
 
   constructor(scope: Construct, id: string, props: EcsConstructProps){
     super(scope, id, props.stackProps);
@@ -36,21 +40,38 @@ export class EcsConstructStack extends Stack{
     const vpc = props.vpc
     const ecrRepo = props.ecrRepo;
     const dbSecret = props.db.secret;
-
     if(!dbSecret) throw 'db secret error';
+
+    const instanceSecurityGroup = new ec2.SecurityGroup(this, 'instanceSecurityGroup', { 
+      securityGroupName: `${props.serviceName}-asg-instance-sg`,
+      vpc,
+      allowAllOutbound: true,
+    });
+
+    instanceSecurityGroup.addIngressRule(ec2.Peer.anyIpv4(),ec2.Port.allTraffic())
+    instanceSecurityGroup.applyRemovalPolicy(RemovalPolicy.DESTROY);
+
+    const autoScalingGroup = new AutoScalingGroup(this, 'asg', {
+      autoScalingGroupName: `${props.serviceName}-asg`,
+      vpc,
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T2, ec2.InstanceSize.MICRO),
+      machineImage: ecs.EcsOptimizedImage.amazonLinux2(),
+      desiredCapacity: 2,
+      maxCapacity: 4,
+      minCapacity: 2,
+      securityGroup: instanceSecurityGroup,
+    });
+    autoScalingGroup.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
     const cluster = new ecs.Cluster(this, `cluster`, { 
       clusterName: `${props.clusterName}`,
       vpc,
-      capacity: {
-        autoScalingGroupName: `${props.serviceName}-asg`,
-        instanceType: ec2.InstanceType.of(ec2.InstanceClass.T2, ec2.InstanceSize.MICRO),
-        desiredCapacity: 2,
-        maxCapacity: 4,
-        minCapacity: 2,
-      },
     });
 
+    cluster.addAsgCapacityProvider(new ecs.AsgCapacityProvider(this, 'AsgCapacityProvider', {
+      autoScalingGroup,
+    }));
+    
     const taskDefinition = new ecs.TaskDefinition(this, 'TaskDef', {
       compatibility: ecs.Compatibility.EC2,
       memoryMiB: '512',
@@ -68,16 +89,17 @@ export class EcsConstructStack extends Stack{
         DATABASE_NAME: Secret.fromSecretsManager(dbSecret, "dbname"),
         DATABASE_PORT: Secret.fromSecretsManager(dbSecret, "port"),
       },
+     environment: props.containerEnv,
       cpu: 256,
       portMappings:[
         {hostPort:80, containerPort: props.containerPort, protocol: ecs.Protocol.TCP},
       ]
     })
 
-    const service = new ecsp.ApplicationLoadBalancedEc2Service(this, `${props.serviceName}`, {
-      loadBalancerName: `${props.serviceName}-alb`,
+    const service = new ecsp.NetworkLoadBalancedEc2Service(this, `${props.serviceName}`, {
       cluster: cluster,
       cpu: 256,
+      loadBalancer: props.loadbalancer,
       memoryLimitMiB: 256,
       desiredCount: 2,
       minHealthyPercent: 50,
@@ -87,6 +109,15 @@ export class EcsConstructStack extends Stack{
       publicLoadBalancer: false,
     });
     
+    service.targetGroup.configureHealthCheck({
+      protocol: elb.Protocol.HTTP,
+      path: "/",
+    })
+    
+    this.loadbalancer = service.loadBalancer;
+    this.listner = service.listener;
+
+    /*
     service.targetGroup.configureHealthCheck({
       "path": '/',
       "interval": Duration.seconds(5),
@@ -101,34 +132,17 @@ export class EcsConstructStack extends Stack{
     }).scaleOnCpuUtilization('Scaling', {
       targetUtilizationPercent: 50,
     })
-
-    const nlb = new elb.NetworkLoadBalancer(this, 'nlb', {
-      loadBalancerName: `${props.serviceName}-nlb`,
-      vpc,
-      crossZoneEnabled: true,
-      internetFacing: true,
-    });
-    
-    const listener = nlb.addListener('listener', { port: 80 });
-    
-    const nlbTagerGroup = listener.addTargets('Targets', {
-      targets: [new elbtargets.AlbTarget(service.loadBalancer, 80)],
-      port: 80,
-    });
-
-    const vpclink = new VpcLink(this, 'link', {
-     vpcLinkName: `${props.serviceName}-vpc`,
-       targets: [ nlb ],
-   });
-
-    nlbTagerGroup.node.addDependency(service.listener);
-
-    new CfnOutput(this, 'NlbEndpoint', { value: `http://${nlb.loadBalancerDnsName}`});
-
-    this.vpcLink = vpclink;
-    this.loadbalance = nlb;
-    this.service = service;
-    this.cluster = cluster;
+    */
+    //new CfnOutput(this, 'NlbEndpoint', { value: `http://${service.loadBalancer.loadBalancerDnsName}`});
 
   }
+
+
+  private sliceDns = (fullDns: string | undefined) => {
+    if(!fullDns) return '';
+
+    const pos = fullDns.indexOf(':');
+    return fullDns.substring(pos+1);
+  }
+  
 }
