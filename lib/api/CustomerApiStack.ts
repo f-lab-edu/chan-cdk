@@ -25,12 +25,13 @@ export class CustomerApiStack extends Stack{
       })
       
       api.addRoutes(this.routeProps('/', HttpMethod.GET));
-      api.addRoutes(this.routeProps('/customerHi', HttpMethod.GET));
-      api.addRoutes(this.routeProps('/customerToSeller', HttpMethod.GET));
+      api.addRoutes(this.routeProps('/customer/member/{accountId}', HttpMethod.GET));
+      api.addRoutes(this.routeProps('/customer/member', HttpMethod.POST));
+      api.addRoutes(this.routeProps('/customer/member', HttpMethod.PUT));
 
-
-      api.addRoutes(this.routeProps('/account', HttpMethod.POST));
-      api.addRoutes(this.routeProps('/account/{id}', HttpMethod.GET));
+      api.addRoutes(this.routeProps('/customer/order', HttpMethod.GET));
+      api.addRoutes(this.routeProps('/customer/order', HttpMethod.POST));
+      api.addRoutes(this.routeProps('/customer/order', HttpMethod.PUT));
 
   }
 
