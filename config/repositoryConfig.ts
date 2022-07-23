@@ -14,14 +14,14 @@ export const INFRA_GIT_REPO:GitRepo = {
 
 export const CUSTOMER_GIT_REPO:GitRepo  = { 
   owner: 'revino',
-  repoName: 'chan_customer_test', 
+  repoName: 'Chan-Customer', 
   branch: 'main',
   tokenName: 'github-token',
 };
 
 export const SELLER_GIT_REPO:GitRepo  = { 
-  owner: 'revino',
-  repoName: 'chan_seller_test', 
+  owner: 'Tloz-z',
+  repoName: 'chan_seller', 
   branch: 'main',
   tokenName: 'github-token',
 };
