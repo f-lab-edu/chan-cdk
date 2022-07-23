@@ -1,12 +1,9 @@
 ## CDK TypeScript project
 
-## Work List
- - [o] Infra Code 관련 Pipeline 설정 
- - [o] Ecs 생성 관련 
- - [o] service pipeline 및 서비스 생성
- - [x] 메뉴얼로 승인하여 Production서버로 deploy 설정
- - [x] db관련 생성 및 설정
-
+## 다이어그램
+[Infra관련 자세한 내용] (https://woong29.notion.site/Updated-on-07-12-2022-f8011a37cf674920838fb9368b261b00)
+![AWS](https://user-images.githubusercontent.com/10641982/180611466-2061902b-4066-4d76-8c8b-6c7c0431f061.png)
+![인증_인가](https://user-images.githubusercontent.com/10641982/180611526-a631660a-03ca-418e-9c4f-238365dc4c13.png)
 ## Useful commands
 
 * `npm run build`   compile typescript to js
