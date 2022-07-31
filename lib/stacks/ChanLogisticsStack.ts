@@ -5,13 +5,14 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { Fn, Stack } from 'aws-cdk-lib';
 import { RepoConstructStack } from '../construct/RepoConstructStack';
 import { EcsConstructStack } from '../construct/EcsConstructStack';
-import { SELLER_GIT_REPO } from '../../config/repositoryConfig';
+import { LOGISTICS_GIT_REPO } from '../../config/repositoryConfig';
 import { ChanServiceProps, SERVICE } from './ChanStack';
 import { SellerApiStack } from '../api/SellerApiStack';
 import { EndpointConstructStack } from '../construct/EndpointConstructStack';
 import { RdsConstructStack } from '../construct/RdsConstructStack';
+import { LogisticsApiStack } from '../api/LogisticsApiStack';
 
-export class ChanSellerStack extends Stack{
+export class ChanLogisticsStack extends Stack{
 
   constructor(scope: Construct, id: string, props: ChanServiceProps){
     super(scope, id, props.stackProps);
@@ -31,7 +32,7 @@ export class ChanSellerStack extends Stack{
     //GitHub & ECR repository Setting
      const serviceRepo = new RepoConstructStack(this, `repo`, {
       ecrName: applicationName, 
-      gitRepo: SELLER_GIT_REPO,
+      gitRepo: LOGISTICS_GIT_REPO,
       ecrLoad: false,
       stackProps: {stackName : `${props.stackProps.stackName}-repo`, env: props.stackProps.env}
     });
@@ -55,14 +56,14 @@ export class ChanSellerStack extends Stack{
     const endpoints = new EndpointConstructStack(this, 'endpoint', {
       serviceName: betaConfig.serviceName,
       vpc,
-      serviceId: SERVICE.SELLER,
+      serviceId: SERVICE.LOGISTICS,
       serviceList: props.endpoints,
       stackProps: {stackName : `${props.stackProps.stackName}-endpoint`, env: props.stackProps.env},
     })
 
     const dns = {
-      [SERVICE.CUSTOMER ]: Fn.importValue(`${betaConfig.serviceName}-${SERVICE.CUSTOMER.toString()}-dns`),
-      [SERVICE.SELLER   ]: Fn.importValue(`${betaConfig.serviceName}-${SERVICE.SELLER  .toString()}-dns`),
+      //[SERVICE.CUSTOMER]: Fn.importValue(`${betaConfig.serviceName}-${SERVICE.CUSTOMER.toString()}-dns`),
+      //[SERVICE.SELLER  ]: Fn.importValue(`${betaConfig.serviceName}-${SERVICE.SELLER  .toString()}-dns`),
     }
 
     //Ecs Setting
@@ -73,8 +74,8 @@ export class ChanSellerStack extends Stack{
       vpc,
       loadbalancer: props.loadbalancer,
       containerEnv:{
-        ENDPOINT_CUSTOMER : dns[SERVICE.CUSTOMER],
-        ENDPOINT_SELLER   : dns[SERVICE.SELLER  ],
+        //ENDPOINT_CUSTOMER: dns[SERVICE.CUSTOMER],
+        //ENDPOINT_SELLER  : dns[SERVICE.SELLER  ],
       },
       db: rdsInsatnce.db,
       ecrRepo: serviceRepo.ecrRepo,
@@ -83,7 +84,7 @@ export class ChanSellerStack extends Stack{
     });
     service.addDependency(endpoints);
     
-    const restApi = new SellerApiStack(this, `api`,  {
+    const restApi = new LogisticsApiStack(this, `api`,  {
       serviceName: betaConfig.serviceName,
       vpc,
       apigateway: props.httpApi,

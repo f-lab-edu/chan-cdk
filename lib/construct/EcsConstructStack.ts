@@ -6,11 +6,8 @@ import * as ecsp from 'aws-cdk-lib/aws-ecs-patterns';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
-import * as elbtargets from 'aws-cdk-lib/aws-elasticloadbalancingv2-targets';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import { Secret } from 'aws-cdk-lib/aws-ecs';
-import { VpcLink } from 'aws-cdk-lib/aws-apigateway';
-import { Protocol, SubnetType } from 'aws-cdk-lib/aws-ec2';
 import { AutoScalingGroup } from 'aws-cdk-lib/aws-autoscaling';
 import { SERVICE } from '../stacks/ChanStack';
 

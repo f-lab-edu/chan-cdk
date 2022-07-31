@@ -65,7 +65,8 @@ export class ChanCustomerStack extends Stack{
     })
 
     const dns = {
-      [SERVICE.SELLER]: Fn.importValue(`${betaConfig.serviceName}-${SERVICE.SELLER.toString()}-dns`),
+      [SERVICE.SELLER   ]: Fn.importValue(`${betaConfig.serviceName}-${SERVICE.SELLER   .toString()}-dns`),
+      [SERVICE.LOGISTICS]: Fn.importValue(`${betaConfig.serviceName}-${SERVICE.LOGISTICS.toString()}-dns`),
     }
 
     //Ecs Setting
@@ -76,7 +77,8 @@ export class ChanCustomerStack extends Stack{
       vpc,
       loadbalancer: props.loadbalancer,
       containerEnv:{
-        ENDPOINT_SELLER: dns[SERVICE.SELLER],
+        ENDPOINT_SELLER   : dns[SERVICE.SELLER   ],
+        ENDPOINT_LOGISTICS: dns[SERVICE.LOGISTICS],
       },
       db: rdsInsatnce.db,
       ecrRepo: serviceRepo.ecrRepo,

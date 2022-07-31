@@ -8,6 +8,7 @@ import { ChanCommonStack } from './ChanCommonStack';
 import { ChanSellerStack } from './ChanSellerStack';
 import { VpcConstructStack } from '../construct/VpcConstructStack';
 import { HttpApi } from '@aws-cdk/aws-apigatewayv2-alpha';
+import { ChanLogisticsStack } from './ChanLogisticsStack';
 
 export enum SERVICE{
   CUSTOMER = 'CUSTOMER',
@@ -38,6 +39,7 @@ export class ChanStack extends Stack{
     })
 
     //VPC Setting
+    /*
     const customerVpc = new VpcConstructStack(this, `customer-vpc`, {
       serviceName: `${appllicationName}customer`,
       cidr:  '10.0.0.0/16',
@@ -49,12 +51,20 @@ export class ChanStack extends Stack{
       cidr:  '10.1.0.0/16',
       stackProps: {env: props.env, stackName : `${appllicationName}-seller-vpc`}
     });
+    */
+    const logisticsVpc = new VpcConstructStack(this, `logistics-vpc`, {
+      serviceName: `${appllicationName}logistics`,
+      cidr:  '10.2.0.0/16',
+      stackProps: {env: props.env, stackName : `${appllicationName}-logistics-vpc`}
+    });
 
     const endpoints = [
-        {id: SERVICE.CUSTOMER, serviceName: customerVpc.endpointService.vpcEndpointServiceName} ,
-        {id: SERVICE.SELLER  , serviceName: sellerVpc.endpointService.vpcEndpointServiceName } ,
+        //{id: SERVICE.CUSTOMER , serviceName: customerVpc.endpointService.vpcEndpointServiceName} ,
+        //{id: SERVICE.SELLER   , serviceName: sellerVpc.endpointService.vpcEndpointServiceName } ,
+        {id: SERVICE.LOGISTICS, serviceName: logisticsVpc.endpointService.vpcEndpointServiceName } ,
     ];
 
+    /*
     const customer = new ChanCustomerStack(this, 'customer', {
       appllicationName: `${appllicationName}customer`,
       vpc: customerVpc.vpc,
@@ -72,6 +82,17 @@ export class ChanStack extends Stack{
       endpoints,
       stackProps: {env: props.env, stackName: `${appllicationName}-seller`},
     });
+    */
+    const logistics = new ChanLogisticsStack(this, 'logistics', {
+      appllicationName: `${appllicationName}logistics`,
+      vpc: logisticsVpc.vpc,
+      loadbalancer: logisticsVpc.loadbalancer,
+      httpApi: common.httpApi,
+      endpoints,
+      stackProps: {env: props.env, stackName: `${appllicationName}-logistics`},
+    });
+
+
   }
   
 }
