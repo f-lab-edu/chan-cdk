@@ -10,6 +10,7 @@ import * as rds from 'aws-cdk-lib/aws-rds';
 import { Secret } from 'aws-cdk-lib/aws-ecs';
 import { AutoScalingGroup } from 'aws-cdk-lib/aws-autoscaling';
 import { SERVICE } from '../stacks/ChanStack';
+import { ManagedPolicy } from 'aws-cdk-lib/aws-iam';
 
 export type EcsConstructProps = {
   serviceName: string,
@@ -58,6 +59,9 @@ export class EcsConstructStack extends Stack{
       minCapacity: 2,
       securityGroup: instanceSecurityGroup,
     });
+
+    autoScalingGroup.role?.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('AmazonSQSFullAccess'));
+    autoScalingGroup.role?.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('AmazonSQSReadOnlyAccess'));
     autoScalingGroup.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
     const cluster = new ecs.Cluster(this, `cluster`, { 
