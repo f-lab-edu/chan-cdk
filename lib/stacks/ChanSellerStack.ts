@@ -10,6 +10,7 @@ import { ChanServiceProps, SERVICE } from './ChanStack';
 import { SellerApiStack } from '../api/SellerApiStack';
 import { EndpointConstructStack } from '../construct/EndpointConstructStack';
 import { RdsConstructStack } from '../construct/RdsConstructStack';
+import { Secret } from 'aws-cdk-lib/aws-ecs';
 
 export class ChanSellerStack extends Stack{
 
@@ -65,6 +66,21 @@ export class ChanSellerStack extends Stack{
       [SERVICE.SELLER   ]: Fn.importValue(`${betaConfig.serviceName}-${SERVICE.SELLER  .toString()}-dns`),
     }
 
+    if(!rdsInsatnce.db.secret) throw 'db secret error';
+
+    const secretEnv = {
+      DATABASE_USERNAME: Secret.fromSecretsManager(rdsInsatnce.db.secret, "username"),
+      DATABASE_PASSWORD: Secret.fromSecretsManager(rdsInsatnce.db.secret, "password"),
+      DATABASE_HOST: Secret.fromSecretsManager(rdsInsatnce.db.secret, "host"),
+      DATABASE_NAME: Secret.fromSecretsManager(rdsInsatnce.db.secret, "dbname"),
+      DATABASE_PORT: Secret.fromSecretsManager(rdsInsatnce.db.secret, "port"),
+    };
+
+    const normalEnv = {
+      ENDPOINT_CUSTOMER : dns[SERVICE.CUSTOMER],
+      ENDPOINT_SELLER   : dns[SERVICE.SELLER  ],
+    };
+
     //Ecs Setting
     const service = new EcsConstructStack(this, `ecs`,  {
       serviceName: betaConfig.serviceName,
@@ -72,11 +88,8 @@ export class ChanSellerStack extends Stack{
       dbKeyName: betaConfig.serviceName,
       vpc,
       loadbalancer: props.loadbalancer,
-      containerEnv:{
-        ENDPOINT_CUSTOMER : dns[SERVICE.CUSTOMER],
-        ENDPOINT_SELLER   : dns[SERVICE.SELLER  ],
-      },
-      db: rdsInsatnce.db,
+      containerSecretEnv: secretEnv,
+      containerEnv: normalEnv,
       ecrRepo: serviceRepo.ecrRepo,
       containerPort: betaConfig.ContainerPort,
       stackProps: {stackName : `${props.stackProps.stackName}-ecs`, env: props.stackProps.env},

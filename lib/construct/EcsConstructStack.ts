@@ -1,16 +1,14 @@
 
 import { Construct } from 'constructs';
-import { CfnOutput, Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
+import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as ecsp from 'aws-cdk-lib/aws-ecs-patterns';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecr from 'aws-cdk-lib/aws-ecr';
 import * as elb from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as rds from 'aws-cdk-lib/aws-rds';
-import { Secret } from 'aws-cdk-lib/aws-ecs';
 import { AutoScalingGroup } from 'aws-cdk-lib/aws-autoscaling';
-import { SERVICE } from '../stacks/ChanStack';
-import { ManagedPolicy } from 'aws-cdk-lib/aws-iam';
+import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
 
 export type EcsConstructProps = {
   serviceName: string,
@@ -18,11 +16,10 @@ export type EcsConstructProps = {
   containerPort: number,
   vpc: ec2.Vpc
   loadbalancer: elb.NetworkLoadBalancer,
-  db: rds.DatabaseInstance,
   dbKeyName: string,
   clusterName: String,
   containerEnv: {[key : string]: string},
-  //endpointDns: { [key in SERVICE]?: string},
+  containerSecretEnv: {[key : string]: ecs.Secret},
   stackProps?: StackProps,
 }
 
@@ -37,8 +34,6 @@ export class EcsConstructStack extends Stack{
     //find service
     const vpc = props.vpc
     const ecrRepo = props.ecrRepo;
-    const dbSecret = props.db.secret;
-    if(!dbSecret) throw 'db secret error';
 
     const instanceSecurityGroup = new ec2.SecurityGroup(this, 'instanceSecurityGroup', { 
       securityGroupName: `${props.serviceName}-asg-instance-sg`,
@@ -58,10 +53,9 @@ export class EcsConstructStack extends Stack{
       maxCapacity: 4,
       minCapacity: 2,
       securityGroup: instanceSecurityGroup,
+      requireImdsv2: true,
     });
 
-    autoScalingGroup.role?.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('AmazonSQSFullAccess'));
-    autoScalingGroup.role?.addManagedPolicy(ManagedPolicy.fromAwsManagedPolicyName('AmazonSQSReadOnlyAccess'));
     autoScalingGroup.applyRemovalPolicy(RemovalPolicy.DESTROY);
 
     const cluster = new ecs.Cluster(this, `cluster`, { 
@@ -79,19 +73,22 @@ export class EcsConstructStack extends Stack{
       cpu: '256',
     });
 
+    const logGroup = new LogGroup(this, 'loggroup', {
+      logGroupName: props.serviceName+"-prod",
+      retention: RetentionDays.ONE_WEEK,
+    })
+
     taskDefinition.addContainer(`container`, {
       containerName: `${props.serviceName}-container`,
       image: ecs.ContainerImage.fromEcrRepository(ecrRepo, 'latest'),
       memoryLimitMiB: 256,
-      secrets: {
-        DATABASE_USERNAME: Secret.fromSecretsManager(dbSecret, "username"),
-        DATABASE_PASSWORD: Secret.fromSecretsManager(dbSecret, "password"),
-        DATABASE_HOST: Secret.fromSecretsManager(dbSecret, "host"),
-        DATABASE_NAME: Secret.fromSecretsManager(dbSecret, "dbname"),
-        DATABASE_PORT: Secret.fromSecretsManager(dbSecret, "port"),
-      },
-     environment: props.containerEnv,
+      secrets: props.containerSecretEnv,
+      environment: props.containerEnv,
       cpu: 256,
+      logging: ecs.LogDrivers.awsLogs({
+        streamPrefix: "prod",
+        logGroup: logGroup,
+      }),
       portMappings:[
         {hostPort:80, containerPort: props.containerPort, protocol: ecs.Protocol.TCP},
       ]
@@ -103,47 +100,22 @@ export class EcsConstructStack extends Stack{
       loadBalancer: props.loadbalancer,
       memoryLimitMiB: 256,
       desiredCount: 2,
-      minHealthyPercent: 50,
-      maxHealthyPercent: 300,
+      minHealthyPercent: 80,
+      maxHealthyPercent: 100,
       serviceName: props.serviceName,
       taskDefinition: taskDefinition,
       publicLoadBalancer: false,
     });
     
     service.targetGroup.configureHealthCheck({
-      protocol: elb.Protocol.HTTP,
-      path: "/",
+      timeout: Duration.seconds(10),
     })
     
     this.loadbalancer = service.loadBalancer;
     this.listner = service.listener;
 
-    /*
-    service.targetGroup.configureHealthCheck({
-      "path": '/',
-      "interval": Duration.seconds(5),
-      "timeout": Duration.seconds(4),
-      "healthyThresholdCount": 2,
-      "unhealthyThresholdCount": 2,
-      "healthyHttpCodes": "200,301,302",
-    });
-
-    service.service.autoScaleTaskCount({
-      maxCapacity: 5,
-    }).scaleOnCpuUtilization('Scaling', {
-      targetUtilizationPercent: 50,
-    })
-    */
     //new CfnOutput(this, 'NlbEndpoint', { value: `http://${service.loadBalancer.loadBalancerDnsName}`});
 
-  }
-
-
-  private sliceDns = (fullDns: string | undefined) => {
-    if(!fullDns) return '';
-
-    const pos = fullDns.indexOf(':');
-    return fullDns.substring(pos+1);
   }
   
 }
