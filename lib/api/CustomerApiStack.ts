@@ -1,9 +1,8 @@
 
 import { Construct } from 'constructs';
 import { Stack } from 'aws-cdk-lib';
-import * as agw from 'aws-cdk-lib/aws-apigateway';
 import { ApiProps } from '../stacks/ChanCommonStack';
-import { HttpApi, VpcLink } from '@aws-cdk/aws-apigatewayv2-alpha';
+import { VpcLink } from '@aws-cdk/aws-apigatewayv2-alpha';
 import { HttpMethod } from 'aws-cdk-lib/aws-events';
 import { HttpNlbIntegration } from '@aws-cdk/aws-apigatewayv2-integrations-alpha';
 import { SubnetType } from 'aws-cdk-lib/aws-ec2';
