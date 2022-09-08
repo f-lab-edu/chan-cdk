@@ -51,20 +51,27 @@ export class ChanStack extends Stack{
       cidr:  '10.1.0.0/16',
       stackProps: {env: props.env, stackName : `${appllicationName}-seller-vpc`}
     });
-    */
+    
     const logisticsVpc = new VpcConstructStack(this, `logistics-vpc`, {
       serviceName: `${appllicationName}logistics`,
       cidr:  '10.2.0.0/16',
       stackProps: {env: props.env, stackName : `${appllicationName}-logistics-vpc`}
     });
 
+    const deliveryVpc = new VpcConstructStack(this, `delivery-vpc`, {
+      serviceName: `${appllicationName}delivery`,
+      cidr:  '10.3.0.0/16',
+      stackProps: {env: props.env, stackName : `${appllicationName}-delivery-vpc`}
+    });
+
     const endpoints = [
-        //{id: SERVICE.CUSTOMER , serviceName: customerVpc.endpointService.vpcEndpointServiceName} ,
-        //{id: SERVICE.SELLER   , serviceName: sellerVpc.endpointService.vpcEndpointServiceName } ,
-        {id: SERVICE.LOGISTICS, serviceName: logisticsVpc.endpointService.vpcEndpointServiceName } ,
+        {id: SERVICE.CUSTOMER , serviceName: customerVpc .endpointService.vpcEndpointServiceName },
+        {id: SERVICE.SELLER   , serviceName: sellerVpc   .endpointService.vpcEndpointServiceName },
+        {id: SERVICE.LOGISTICS, serviceName: logisticsVpc.endpointService.vpcEndpointServiceName },
+        {id: SERVICE.DELIVERY , serviceName: deliveryVpc .endpointService.vpcEndpointServiceName },
     ];
 
-    /*
+    
     const customer = new ChanCustomerStack(this, 'customer', {
       appllicationName: `${appllicationName}customer`,
       vpc: customerVpc.vpc,
@@ -82,7 +89,7 @@ export class ChanStack extends Stack{
       endpoints,
       stackProps: {env: props.env, stackName: `${appllicationName}-seller`},
     });
-    */
+    
     const logistics = new ChanLogisticsStack(this, 'logistics', {
       appllicationName: `${appllicationName}logistics`,
       vpc: logisticsVpc.vpc,
@@ -91,8 +98,7 @@ export class ChanStack extends Stack{
       endpoints,
       stackProps: {env: props.env, stackName: `${appllicationName}-logistics`},
     });
-
-
+    */
   }
   
 }

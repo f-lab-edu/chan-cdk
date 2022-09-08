@@ -27,6 +27,7 @@ export class EcsConstructStack extends Stack{
 
   public readonly loadbalancer: elb.NetworkLoadBalancer;
   public readonly listner: elb.NetworkListener;
+  public readonly service: ecsp.NetworkLoadBalancedEc2Service;
 
   constructor(scope: Construct, id: string, props: EcsConstructProps){
     super(scope, id, props.stackProps);
@@ -54,6 +55,11 @@ export class EcsConstructStack extends Stack{
       minCapacity: 2,
       securityGroup: instanceSecurityGroup,
       requireImdsv2: true,
+    });
+
+    autoScalingGroup.scaleOnCpuUtilization('CpuScaling', {
+      targetUtilizationPercent: 70,
+      cooldown: Duration.minutes(5),
     });
 
     autoScalingGroup.applyRemovalPolicy(RemovalPolicy.DESTROY);
@@ -113,8 +119,7 @@ export class EcsConstructStack extends Stack{
     
     this.loadbalancer = service.loadBalancer;
     this.listner = service.listener;
-
-    //new CfnOutput(this, 'NlbEndpoint', { value: `http://${service.loadBalancer.loadBalancerDnsName}`});
+    this.service = service;
 
   }
   

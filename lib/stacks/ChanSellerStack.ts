@@ -11,6 +11,7 @@ import { SellerApiStack } from '../api/SellerApiStack';
 import { EndpointConstructStack } from '../construct/EndpointConstructStack';
 import { RdsConstructStack } from '../construct/RdsConstructStack';
 import { Secret } from 'aws-cdk-lib/aws-ecs';
+import { CicdConstructStack } from '../construct/CicdConstructStack';
 
 export class ChanSellerStack extends Stack{
 
@@ -105,16 +106,15 @@ export class ChanSellerStack extends Stack{
       stackProps: {stackName : `${props.stackProps.stackName}-api`, env: props.stackProps.env}
     });
     
-    /*
     //CI / CD Setting
     const serviceCicd = new CicdConstructStack(this, `cicd`, {
       serviceName: `${applicationName}`,
       gitRepo: serviceRepo.gitRepo,
       ecrRepo: serviceRepo.ecrRepo,
-      //serviceBeta: service.service,
+      service: service.service,
       stackProps: {stackName : `${props.stackProps.stackName}-cicd`, env: props.stackProps.env}
     });
-    */
+    
   }
 
 }

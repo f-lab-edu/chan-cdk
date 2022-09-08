@@ -16,7 +16,7 @@ export interface PipelineConfig{
   serviceName: string,
   gitRepo: GitRepo,
   ecrRepo: ecr.IRepository,
-  //serviceBeta: ecsp.ApplicationLoadBalancedEc2Service,
+  service: ecsp.NetworkLoadBalancedEc2Service,
   stackProps?: StackProps,
 }
 
@@ -49,8 +49,8 @@ export class CicdConstructStack extends Stack {
     pipeline.addStage({stageName: 'Build', actions: [buildAction],})
     
     //Deploy Beta Stage
-    //const deployBetaAction = this.getEcsBetaDeployActioin(buildOutput);
-    //pipeline.addStage({stageName: 'Deploy-Beta', actions: [deployBetaAction],})
+    const deployBetaAction = this.getEcsBetaDeployActioin(buildOutput);
+    pipeline.addStage({stageName: 'Deploy-Beta', actions: [deployBetaAction],})
 
     /*
     검증 필요
@@ -83,15 +83,15 @@ export class CicdConstructStack extends Stack {
         outputs: [output]
     });
   }
-  /*
+  
   private getEcsBetaDeployActioin = (buildArtifact: Artifact):EcsDeployAction => {
     return new EcsDeployAction({
         actionName: `DeployAction`,
-        service: this.config.serviceBeta.service,
+        service: this.config.service.service,
         input: buildArtifact,
     });
   }
-  */                                              
+                                              
   private getEcsApproveActioin = () : ManualApprovalAction => {
 
     const action = new ManualApprovalAction({

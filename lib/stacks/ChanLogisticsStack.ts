@@ -17,6 +17,7 @@ import { LogisticsApiStack } from '../api/LogisticsApiStack';
 import { SqsConstructStack } from '../construct/SqsConstructStack';
 import { LambdaConstructStack } from '../construct/LambdaConstructStack';
 import { ManagedPolicy } from 'aws-cdk-lib/aws-iam';
+import { CicdConstructStack } from '../construct/CicdConstructStack';
 
 
 export class ChanLogisticsStack extends Stack{
@@ -149,16 +150,16 @@ export class ChanLogisticsStack extends Stack{
       stackProps: {stackName : `${props.stackProps.stackName}-lambda`, env: props.stackProps.env},
     });
     
-    /*
+    
     //CI / CD Setting
     const serviceCicd = new CicdConstructStack(this, `cicd`, {
       serviceName: `${applicationName}`,
       gitRepo: serviceRepo.gitRepo,
       ecrRepo: serviceRepo.ecrRepo,
-      //serviceBeta: service.service,
+      service: service.service,
       stackProps: {stackName : `${props.stackProps.stackName}-cicd`, env: props.stackProps.env}
     });
-    */
+    
   }
 
 }
